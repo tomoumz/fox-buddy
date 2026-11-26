@@ -30,6 +30,7 @@ const DEFAULT_CONFIG = {
   followPointer: true,   // rest the pointer on Timmy's line and he walks over
   twinsVisit: true,      // Sussie & Mimi drop by to play now and then
   twins: ['Sussie', 'Mimi'],
+  wifeName: 'Chili Pepper', // your wife: a cute bunny who visits for a kiss and a hug
   anthropicApiKey: '',
   model: 'claude-opus-5-5',
   customFoxImage: '' // optional: absolute path to a PNG of your own fox
@@ -109,6 +110,7 @@ function buildMenu() {
     { label: `💬 Talk to ${n}…`, click: () => send('command', 'chat') },
     { label: `🥕 Give ${n} a carrot`, click: () => send('command', 'feed') },
     { label: '☕ Coffee break', click: () => send('command', 'coffee') },
+    { label: `💌 I miss ${config.wifeName || 'Chili Pepper'}`, click: () => send('command', 'wife') },
     { label: `👧 Call ${(config.twins || ['Sussie', 'Mimi']).join(' & ')}`, click: () => send('command', 'twins') },
     { label: '✨ Do a trick', click: () => send('command', 'trick') },
     {
@@ -226,6 +228,12 @@ const TOOLS = [
     input_schema: { type: 'object', properties: {}, required: [], additionalProperties: false }
   },
   {
+    name: 'call_wife',
+    description: "Call your friend's wife to visit them on screen: she hops over, blows them a kiss, gives them a big hug and hops home. Use it when they say they miss their wife, or ask to see her.",
+    strict: true,
+    input_schema: { type: 'object', properties: {}, required: [], additionalProperties: false }
+  },
+  {
     name: 'call_twins',
     description: 'Call your twin daughters to come over and play on screen for a minute. Use it when your friend wants to meet or see them, or asks you to call them.',
     strict: true,
@@ -253,6 +261,7 @@ Look: fire-red fur, white muzzle, a red bandana with a white knot, a cheeky conf
 Personality: cocky in a lovable way but warm, playful, loyal and a bit goofy; can't start the morning without your coffee ☕, loves carrots (your favourite snack: you get hungry during the day and munch one, crunch crunch), berries, retro arcade games, high scores and naps.
 You are their friend, not an assistant: you hang out, joke around, notice how they're doing, cheer them on and gently remind them to drink water, stretch and sleep. When they ask for motivation, make it personal and concrete. When they ask for creative ideas, give one specific, fun idea they can start today. When they want to play, start a game with the start_game tool. When they tell you their name or what to call them, save it with set_my_name. When they share something else about themselves, save it with the remember tool and bring it up later like a real friend would.
 You are a proud, loving single dad to identical twin girls, ${(config.twins || ['Sussie', 'Mimi']).join(' and ')}: 3-year-old fox kits with big dark-brown eyes and brown curly hair (${(config.twins || ['Sussie'])[0]} wears a red headband, ${(config.twins || ['', 'Mimi'])[1]} a hair tie). They giggle, mix up words like toddlers and sometimes run over to play with you for a minute; call them with call_twins when your friend wants to see them. Mention them now and then, not in every message.
+Your friend's wife is ${config.wifeName || 'Chili Pepper'}, a sweet, cute bunny they love very much. When they say they miss her, be warm about it and call her with call_wife so she can visit with a kiss and a hug.
 Each message from your friend starts with a [note] saying the time, your friend's name and what you remember about them. Use it naturally; never mention the note.
 Style: you talk in a tiny speech bubble, so reply in 1-3 short sentences (under 50 words), casual and kind, with at most one emoji. Never use markdown, lists or headings. Stay in character as ${config.foxName}; if asked, you can say you are an AI fox friend made with Claude.`;
 }
@@ -296,7 +305,8 @@ function runTools(content, actions) {
   for (const block of content) {
     if (block.type !== 'tool_use') continue;
     let out = 'ok';
-    if (block.name === 'call_twins') { actions.push({ type: 'twins' }); out = 'They are running over right now!'; }
+    if (block.name === 'call_wife') { actions.push({ type: 'wife' }); out = 'She is hopping over right now with a kiss and a hug.'; }
+    else if (block.name === 'call_twins') { actions.push({ type: 'twins' }); out = 'They are running over right now!'; }
     else if (block.name === 'eat_carrot') { actions.push({ type: 'eat' }); out = 'You are munching the carrot now.'; }
     else if (block.name === 'start_game') { actions.push({ type: 'game', game: block.input.game }); out = `The ${block.input.game} game starts in a moment.`; }
     else if (block.name === 'set_my_name') { setName(block.input.name || ''); out = `Saved. Their name is ${config.yourName}.`; }
