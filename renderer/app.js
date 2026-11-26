@@ -9,7 +9,7 @@
     chat: async () => ({ offline: true }),
     customFox: async () => null
   };
-  const { drawKit, drawCarrotIcon, drawDad, drawHeart, drawBerry, drawBall, drawStarburst, outline } = window.Sprites;
+  const { drawBunny, drawLips, drawKit, drawCarrotIcon, drawDad, drawHeart, drawBerry, drawBall, drawStarburst, outline } = window.Sprites;
   const L = window.Lines;
 
   let cfg = await api.getConfig();
@@ -37,6 +37,9 @@
   const KIT = { w: 24 * S, h: 25 * S };
   const kitOff = Object.assign(document.createElement('canvas'), { width: 24, height: 25 });
   const kitG = kitOff.getContext('2d', { willReadFrequently: true });
+  const BUN = { w: 28 * S, h: 34 * S };
+  const bunOff = Object.assign(document.createElement('canvas'), { width: 28, height: 34 });
+  const bunG = bunOff.getContext('2d', { willReadFrequently: true });
   const starOff = Object.assign(document.createElement('canvas'), { width: 48, height: 48 });
   const dadG = dadOff.getContext('2d', { willReadFrequently: true });
   const starG = starOff.getContext('2d');
@@ -55,7 +58,8 @@
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const youName = () => cfg.yourName || 'buddy';
   const twinNames = () => (Array.isArray(cfg.twins) && cfg.twins.length === 2 ? cfg.twins : ['Sussie', 'Mimi']);
-  const fill = (s, other) => s.replace(/\{you\}/g, youName()).replace(/\{fox\}/g, cfg.foxName).replace(/\{a\}/g, twinNames()[0]).replace(/\{b\}/g, twinNames()[1]).replace(/\{other\}/g, other || twinNames()[1])
+  const wifeName = () => cfg.wifeName || 'Chili Pepper';
+  const fill = (s, other) => s.replace(/\{you\}/g, youName()).replace(/\{fox\}/g, cfg.foxName).replace(/\{wife\}/g, wifeName()).replace(/\{wife\}/g, wifeName()).replace(/\{a\}/g, twinNames()[0]).replace(/\{b\}/g, twinNames()[1]).replace(/\{other\}/g, other || twinNames()[1])
 ;
   const todayKey = () => new Date().toDateString();
   const hm = (s) => { const [h, m] = String(s).split(':').map(Number); return (h || 0) * 60 + (m || 0); };
@@ -88,6 +92,8 @@
     fanfare: () => [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone(f, 0.14, { when: i * 0.11 })),
     lullaby: () => [784, 659, 784, 659, 698, 587, 523].forEach((f, i) => tone(f, 0.35, { when: i * 0.38, type: 'triangle', vol: 0.05 })),
     slurp: () => { tone(300, 0.25, { type: 'triangle', vol: 0.04, slide: 520 }); tone(520, 0.12, { type: 'triangle', vol: 0.03, when: 0.25, slide: 260 }); },
+    kiss: () => { tone(900, 0.06, { type: 'sine', vol: 0.05, slide: 1400 }); tone(1500, 0.12, { type: 'sine', vol: 0.04, when: 0.07, slide: 700 }); },
+    boing: () => tone(420, 0.12, { type: 'sine', vol: 0.03, slide: 820 }),
     crunch: () => { tone(140, 0.05, { type: 'sawtooth', vol: 0.03 }); tone(95, 0.06, { type: 'sawtooth', vol: 0.03, when: 0.06 }); tone(180, 0.04, { type: 'square', vol: 0.02, when: 0.13 }); },
     win: () => [523, 659, 784, 1047, 1319, 1568].forEach((f, i) => tone(f, 0.1, { when: i * 0.07 })),
     dance: () => { const n = [523, 523, 784, 659, 698, 587, 659, 523]; for (let k = 0; k < 3; k++) n.forEach((f, i) => tone(f, 0.12, { when: k * 1.6 + i * 0.2 })); }
@@ -110,17 +116,17 @@
   const bubbleRoot = document.getElementById('bubbles');
   const bubbles = new Map(); // speaker -> {el, text, shown, t, life}
   function say(who, text, { buttons = null, life = null, kid = false, custom = null, menu = false, you = null, chat = false, force = false } = {}) {
-    const speaker = who === 'dad' ? dad : kits[who];
+    const speaker = who === 'dad' ? dad : who === 'wife' ? wife : kits[who];
     if (!speaker) return null;
     // a twin right next to a talking Timmy would cover his bubble: send a heart instead (or, if you clicked her, let her talk)
-    if (who !== 'dad' && bubbles.get('dad') && Math.abs(speaker.x - dad.x) < 230) {
+    if (who !== 'dad' && who !== 'wife' && bubbles.get('dad') && Math.abs(speaker.x - dad.x) < 230) {
       if (!force || bubbles.get('dad').interactive || chatOpen) { burst('heart', speaker.x, GROUND - KIT.h, 1); return null; }
       shut('dad');
     }
     shut(who);
     const el = document.createElement('div');
-    el.className = 'bubble' + (menu || (buttons && buttons.length > 3) ? ' menu' : '') + (who === 'dad' ? '' : ' kid');
-    const name = who === 'dad' ? cfg.foxName : twinNames()[who];
+    el.className = 'bubble' + (menu || (buttons && buttons.length > 3) ? ' menu' : '') + (who === 'dad' ? '' : who === 'wife' ? ' wife' : ' kid');
+    const name = who === 'dad' ? cfg.foxName : who === 'wife' ? wifeName() : twinNames()[who];
     el.innerHTML = `<span class="who"></span><span class="txt"></span>`;
     el.querySelector('.who').textContent = name;
     if (you) { const y = document.createElement('span'); y.className = 'you'; y.textContent = 'You: ' + you; el.insertBefore(y, el.firstChild); }
@@ -131,13 +137,14 @@
     }
     if (custom) custom(el);
     bubbleRoot.appendChild(el);
-    const full = fill(text, who === 'dad' ? undefined : twinNames()[1 - who]);
+    const full = fill(text, typeof who === 'number' ? twinNames()[1 - who] : undefined);
     const b = { chat, menu: !!custom, interactive: !!(buttons || custom), el, speaker, full, shown: 0, t: 0, life: life || (buttons || custom ? 60 : Math.max(4, full.length * 0.07 + 2.5)), kid: who !== 'dad' };
     bubbles.set(who, b);
     return b;
   }
   function shut(who) { const b = bubbles.get(who); if (b) { b.el.remove(); bubbles.delete(who); } }
   function speakerTop(s = dad) {
+    if (s === wife) return GROUND - (BUN.h - 6) - s.jump;
     if (s !== dad) return GROUND - (KIT.h - 6) - s.jump;
     return GROUND - (dad.kind === 'sleep' ? 50 : DAD.h - 8) - dad.jump;
   }
@@ -231,6 +238,7 @@
   const inR = (r, x, y) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
   function hitAt(x, y) {
     if (inR(dadRect(), x, y)) return 'dad';
+    if (wife && inR({ x: wife.x - BUN.w / 2 + 12, y: GROUND - BUN.h + 6 - wife.jump, w: BUN.w - 24, h: BUN.h - 6 }, x, y)) return 'wife';
     for (const k of kits) if (inR({ x: k.x - KIT.w / 2 + 6, y: GROUND - KIT.h + 4 - k.jump, w: KIT.w - 12, h: KIT.h - 4 }, x, y)) return k;
     if (fetchBall && Math.hypot(fetchBall.x - x, fetchBall.y - y) < 22) return 'ball';
     return null;
@@ -262,6 +270,7 @@
     if (hit === 'dad' && mode !== 'berries' && mode !== 'chase') drag = { sx: e.clientX, moved: false };
     else if (hit === 'ball') throwBall();
     else if (hit && hit.twin !== undefined) pokeKit(hit);
+    else if (hit === 'wife') { wife.vy = 220; sfx.kiss(); burst('heart', wife.x, GROUND - BUN.h, 3); say('wife', pick(L.wife.poke)); }
   });
   window.addEventListener('mouseup', (e) => {
     if (!drag) return;
@@ -312,6 +321,7 @@
     if (tab === 'timmy') return [
       ['🥕 Feed a carrot', () => eatCarrot(true)], ['☕ Coffee break', () => { shut('dad'); drinkCoffee(); }], ['✨ Do a trick', doTrick],
       [`👧 Call ${twinNames()[0]} & ${twinNames()[1]}`, () => startVisit(true)],
+      [`💌 I miss ${wifeName()}`, () => startWifeVisit()],
       ['👋 Say hi', () => { dad.vy = 240; say('dad', pick(L.keyword[0][1])); }], ['🌙 Bedtime', () => { manualSleepUntil = Date.now() + 2 * 60 * 60 * 1000; goToSleep('night'); }]
     ];
     const p = await api.getPrefs();
@@ -416,6 +426,7 @@
       if (act.type === 'game') setTimeout(() => startGame(act.game), 2500);
       if (act.type === 'eat') setTimeout(() => eatCarrot(true), 2500);
       if (act.type === 'twins') setTimeout(() => startVisit(true), 2500);
+      if (act.type === 'wife') setTimeout(() => startWifeVisit(), 2500);
     }
     if (res.text) dad.wag = 1;
     return res;
@@ -513,6 +524,51 @@
     if (visit.phase === 'leave' && (visit.t > 8 || kits.every((k) => k.x < -60 || k.x > W + 60))) { kits.length = 0; visit = null; shut(0); shut(1); }
   }
 
+  // ---------- Chili Pepper visits 🐰💕 ----------
+  // When you miss her: she hops in, blows you a kiss, gives you a big hug, and hops home.
+  let wife = null, hugGlow = 0;
+  function startWifeVisit() {
+    if (wife) { say('wife', pick(L.wife.poke)); return; }
+    if (mode === 'sleep' || mode === 'nap') wakeUp('quiet');
+    endGame(true); endVisit(true); closeMenus();
+    if (mode === 'eating' || mode === 'coffee') { mode = 'awake'; dad.coffee = 0; dad.carrotBites = null; }
+    scene++;
+    const fromLeft = dad.x > W / 2;
+    let spot = mouse.inside ? mouse.x : W / 2;
+    if (Math.abs(spot - dad.x) < 170) spot = dad.x + (fromLeft ? -190 : 190);
+    wife = { x: fromLeft ? -50 : W + 50, jump: 0, vy: 0, dir: fromLeft ? 1 : -1, kind: 'walk', target: clamp(spot, 60, W - 60), speed: 120,
+      frame: 0, ft: 0, eyes: 'open', blink: false, mouth: false, wag: 0, breath: false, phase: 'arrive', t: 0, fromLeft };
+    dad.target = null; dad.dir = fromLeft ? -1 : 1; dad.eyes = 'happy';
+    say('dad', pick(L.wife.dadHello), { life: 3 });
+  }
+  function updateWife(dt) {
+    if (hugGlow > 0) hugGlow -= dt;
+    if (!wife) return;
+    const w = wife; w.t += dt;
+    if (w.target !== null && w.jump === 0 && w.vy === 0) { w.vy = 230; sfx.boing(); } // bunny hops
+    if (w.phase === 'arrive' && w.target === null && w.jump === 0) {
+      w.phase = 'greet'; w.t = 0; w.dir = Math.sign(dad.x - w.x) || 1; // face Timmy w.kind = 'stand';
+      say('wife', pick(L.wife.arrive)); burst('heart', w.x, GROUND - BUN.h, 2);
+    } else if (w.phase === 'greet' && w.t > 2.6) {
+      w.phase = 'kiss'; w.t = 0; w.kind = 'kiss'; sfx.kiss();
+      say('wife', pick(L.wife.kiss));
+      const side = w.x < W / 2 ? 1 : -1; // the kiss flies out sideways, clear of her bubble
+      particles.push({ kind: 'lips', x: w.x + side * 60, y: GROUND - BUN.h + 30, vx: side * 150, vy: -35, life: 2.6, t: 0 });
+      later(() => { dad.vy = 180; say('dad', pick(L.wife.dadAww), { life: 2.5 }); }, 1300);
+    } else if (w.phase === 'kiss' && w.t > 2.8) {
+      w.phase = 'hug'; w.t = 0; w.kind = 'hug'; hugGlow = 3.2;
+      say('wife', pick(L.wife.hug)); sfx.win();
+      for (let k = 0; k < 14; k++) burst('heart', rand(40, W - 40), GROUND - rand(20, 160), 1);
+    } else if (w.phase === 'hug' && w.t > 3.4) {
+      w.phase = 'bye'; w.t = 0; w.kind = 'stand';
+      say('wife', pick(L.wife.bye));
+    } else if (w.phase === 'bye' && w.t > 2.4) {
+      w.phase = 'leave'; w.t = 0; w.speed = 140; w.target = w.fromLeft ? -90 : W + 90;
+      later(() => say('dad', pick(L.wife.dadAfter), { life: 4 }), 1500);
+    } else if (w.phase === 'leave' && (w.x < -70 || w.x > W + 70 || w.t > 10)) { shut('wife'); wife = null; }
+    if (w.phase === 'leave' || w.phase === 'arrive') w.kind = 'walk';
+  }
+
   // ---------- morning coffee ☕ ----------
   function drinkCoffee() {
     if (mode !== 'awake') return;
@@ -605,6 +661,7 @@
     if (chatOpen) { placeChat(); chatInput.focus(); }
     if (res && res.text) say('dad', res.text, { you: text, chat: true });
     else if (!res) {
+      if (/miss (my )?(wife|her)|chili/i.test(text)) return startWifeVisit();
       if (/carrot|hungry|food|eat|snack/i.test(text)) return eatCarrot(true);
       if (/play|game|bored/i.test(text)) return openPlayMenu();
       if (/motivat|lazy|procrastinat|give up|can't do/i.test(text)) return askFor('motivation');
@@ -792,6 +849,7 @@
     else if (cmd.startsWith('ask:')) { if (mode === 'sleep' || mode === 'nap') wakeUp('quiet'); askFor(cmd.slice(4)); }
     else if (cmd === 'feed') eatCarrot(true);
     else if (cmd === 'twins') startVisit(true);
+    else if (cmd === 'wife') startWifeVisit();
     else if (cmd === 'coffee') { if (mode === 'sleep' || mode === 'nap') wakeUp('quiet'); drinkCoffee(); }
     else if (cmd === 'trick') doTrick();
     else if (cmd === 'menu') openMainMenu();
@@ -970,7 +1028,13 @@
   }
   function render() {
     ctx.clearRect(0, 0, W, H);
+    if (hugGlow > 0) { // the hug: a warm pink glow around the whole strip
+      const a = Math.min(1, hugGlow / 1.2) * 0.55;
+      const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, 'rgba(255,120,160,0)'); g.addColorStop(1, `rgba(255,120,160,${a})`);
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    }
     kits.forEach((k) => { shadow(k.x, KIT.w * 0.6, k.jump); blit(kitOff, kitG, drawKit, k, k.x, KIT.w, KIT.h, k.jump, k.dir); });
+    if (wife) { shadow(wife.x, BUN.w * 0.55, wife.jump); blit(bunOff, bunG, drawBunny, wife, wife.x, BUN.w, BUN.h, wife.jump, wife.dir); }
     drawDadEntity();
     if (dad.hunger >= 70 && mode === 'awake' && dad.kind !== 'sleep') { // little "I'm hungry" carrot bobbing over his head
       const bob = Math.sin(performance.now() / 300) * 3;
@@ -991,6 +1055,7 @@
       ctx.globalAlpha = Math.max(0, a);
       if (p.kind === 'heart') drawHeart(ctx, Math.round(p.x), Math.round(p.y), 2);
       else if (p.kind === 'z') { ctx.fillStyle = '#ffffff'; ctx.font = `bold ${12 + p.t * 6}px ui-monospace, Menlo, monospace`; ctx.strokeStyle = '#2b1b17'; ctx.lineWidth = 3; ctx.strokeText('Z', p.x, p.y); ctx.fillText('Z', p.x, p.y); }
+      else if (p.kind === 'lips') { ctx.globalAlpha = Math.min(1, 2.2 * (1 - p.t / p.life)); const sc = 3 + Math.floor(p.t * 3); drawLips(ctx, Math.round(p.x - 5 * sc), Math.round(p.y - 3 * sc), Math.round(sc)); }
       else if (p.kind === 'steam') { ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.fillRect(Math.round(p.x + Math.sin(p.t * 6) * 3), Math.round(p.y), 4, 4); }
       else if (p.kind === 'crumb') { ctx.fillStyle = Math.random() < 0.5 ? '#ff6a2a' : '#c43d0c'; ctx.fillRect(Math.round(p.x), Math.round(p.y), 5, 5); }
       else if (p.kind === 'note') { ctx.fillStyle = '#ffd23f'; ctx.font = 'bold 18px ui-monospace, Menlo, monospace'; ctx.strokeStyle = '#2b1b17'; ctx.lineWidth = 3; ctx.strokeText('♪', p.x, p.y); ctx.fillText('♪', p.x, p.y); }
@@ -1006,6 +1071,8 @@
     think(dt);
     updateGame(dt);
     move(dad, dt); updateVisit(dt); kits.forEach((k) => move(k, dt));
+    if (wife) { const keep = wife.kind; move(wife, dt); if (keep === 'kiss' || keep === 'hug') wife.kind = keep; }
+    updateWife(dt);
     if (dad.kind === 'sleep') { zT -= dt; if (zT <= 0) { zT = 1.6; burst('z', dad.x + 30, GROUND - 55, 1); } }
     for (const p of particles) { p.t += dt; p.x += p.vx * dt * (p.kind === 'z' ? 0.5 : 1); p.y += p.vy * dt; if (p.kind === 'z') p.x += Math.sin(p.t * 3) * 0.4; }
     for (let i = particles.length - 1; i >= 0; i--) if (particles[i].t > particles[i].life) particles.splice(i, 1);
@@ -1023,5 +1090,5 @@
   requestAnimationFrame(frame);
 
   // preview hook (used only for screenshots in a browser)
-  window.__fox = { dad, kits, startVisit, endVisit, say, openMainMenu, doTrick, eatCarrot, askForCarrot, drinkCoffee, openAskMenu, openPlayMenu, askFor, startGame, goToSleep, wakeUp, get mode() { return mode; }, get game() { return game; } };
+  window.__fox = { dad, kits, startWifeVisit, get wife() { return wife; }, startVisit, endVisit, say, openMainMenu, doTrick, eatCarrot, askForCarrot, drinkCoffee, openAskMenu, openPlayMenu, askFor, startGame, goToSleep, wakeUp, get mode() { return mode; }, get game() { return game; } };
 })();

@@ -211,6 +211,56 @@ function drawKit(g, pose) {
   if (pose.mouth) r(17, 11 + hy, 3, 1, 'M'); else { r(17, 11 + hy, 2, 1, 'K'); r(16, 10 + hy, 1, 1, 'K'); }
 }
 
+// ---------------- CHILI PEPPER (content grid 26 x 32) ----------------
+// A cute white bunny: long ears with pink insides, big lashy eyes, rosy cheeks,
+// red lips and a little red chili-pepper clip on her ears.
+const BUNPAL = { F: '#ffffff', F2: '#ece3ea', E: '#ff9fb8', eye: '#2a1420', lip: '#e0254a', chili: '#e01e1e', chili2: '#ff5a4a', stem: '#3a9d23', blush: '#ffb3c6' };
+function bunPx(g) { const r0 = px(g); return (x, y, w, h, c) => r0(x, y, w, h, BUNPAL[c] || c); }
+// pose.kind: 'stand' | 'walk' (hopping) | 'kiss' | 'hug'
+function drawBunny(g, pose) {
+  const r = bunPx(g);
+  const air = pose.jump > 2;
+  const b = pose.breath ? 1 : 0;
+  // fluffy tail
+  r(3, 20, 4, 4, 'F2'); r(2, 21, 1, 2, 'F2');
+  // feet: tucked when hopping
+  if (air) { r(6, 26, 7, 3, 'F'); r(13, 27, 5, 2, 'F'); }
+  else { r(4, 28, 8, 3, 'F'); r(4, 30, 8, 1, 'F2'); r(13, 29, 5, 2, 'F'); }
+  // round body + belly
+  r(6, 17 + b, 13, 11 - b, 'F'); r(7, 16 + b, 10, 1, 'F'); r(6, 27, 13, 1, 'F2'); r(11, 20 + b, 7, 6, 'F2');
+  // head
+  const hy = b;
+  r(11, 8 + hy, 11, 10, 'F'); r(12, 7 + hy, 8, 1, 'F'); r(21, 12 + hy, 3, 5, 'F');
+  // long ears (flowing back while hopping)
+  if (air) { r(5, 5 + hy, 8, 3, 'F'); r(6, 6 + hy, 6, 1, 'E'); r(4, 9 + hy, 8, 2, 'F'); r(5, 9 + hy, 5, 1, 'E'); }
+  else {
+    r(12, 0 + hy, 3, 8, 'F'); r(13, 1 + hy, 1, 6, 'E');
+    r(16, 1 + hy, 3, 7, 'F'); r(17, 2 + hy, 1, 5, 'E'); r(19, 0 + hy, 1, 2, 'F');
+  }
+  // chili-pepper hair clip
+  r(14, 7 + hy, 4, 2, 'chili'); r(18, 8 + hy, 1, 1, 'chili'); r(15, 7 + hy, 2, 1, 'chili2'); r(13, 7 + hy, 1, 1, 'stem'); r(12, 6 + hy, 1, 1, 'stem');
+  // nose, cheek, lips
+  r(23, 12 + hy, 1, 1, 'E');
+  r(18, 14 + hy, 2, 1, 'blush');
+  if (pose.kind === 'kiss') { r(22, 15 + hy, 2, 2, 'lip'); r(23, 15 + hy, 1, 1, 'chili2'); }
+  else if (pose.mouth) { r(21, 15 + hy, 2, 2, 'lip'); }
+  else { r(21, 15 + hy, 2, 1, 'lip'); }
+  // big eyes with lashes (closed for kisses and hugs)
+  const closed = pose.blink || pose.kind === 'kiss' || pose.kind === 'hug';
+  if (closed) { r(17, 12 + hy, 3, 1, 'eye'); r(20, 11 + hy, 1, 1, 'eye'); }
+  else { r(17, 10 + hy, 3, 3, 'eye'); r(17, 10 + hy, 1, 1, 'W'); r(18, 12 + hy, 1, 1, 'W'); r(20, 9 + hy, 1, 1, 'eye'); r(17, 9 + hy, 3, 1, 'eye'); }
+  // arms
+  if (pose.kind === 'hug') { r(17, 16 + hy, 5, 2, 'F'); r(21, 13 + hy, 2, 4, 'F'); r(8, 15 + hy, 2, 4, 'F'); r(6, 13 + hy, 3, 2, 'F'); }  // arms wide open
+  else if (pose.kind === 'kiss') { r(18, 17 + hy, 3, 2, 'F'); r(21, 15 + hy, 2, 2, 'F'); }                                                     // hand to lips
+  else { r(15, 19 + hy, 2, 5, 'F2'); }
+}
+// a big pixel kiss mark 💋
+function drawLips(g, x, y, s, color = '#e0254a') {
+  const rr = (a, b, w, h, c) => { g.fillStyle = c; g.fillRect(x + a * s, y + b * s, w * s, h * s); };
+  rr(1, 0, 3, 1, color); rr(6, 0, 3, 1, color); rr(0, 1, 10, 2, color); rr(4, 1, 2, 1, '#ff7a90');
+  rr(0, 3, 10, 1, '#9e1030'); rr(1, 4, 8, 2, color); rr(3, 6, 4, 1, color); rr(2, 4, 2, 1, '#ff7a90');
+}
+
 // ---------- yellow starburst (the logo's background) ----------
 function drawStarburst(g, size, spin) {
   const c = size / 2, pts = 9;
@@ -244,4 +294,4 @@ function drawBall(g, x, y, s) {
   r(1, 0, 3, 5, '#c6f432'); r(0, 1, 5, 3, '#c6f432'); r(1, 1, 1, 3, '#ffffff'); r(3, 1, 1, 3, '#ffffff');
 }
 
-window.Sprites = { drawKit, drawCarrotIcon, drawDad, drawHeart, drawBerry, drawBall, drawStarburst, outline, PAL };
+window.Sprites = { drawBunny, drawLips, drawKit, drawCarrotIcon, drawDad, drawHeart, drawBerry, drawBall, drawStarburst, outline, PAL };

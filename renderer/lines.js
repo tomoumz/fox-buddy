@@ -66,6 +66,16 @@ window.Lines = {
     "Ooh, a visitor! What do you need?"
   ],
 
+  wife: {
+    dadHello: ["Ooh, look who's hopping over! 💕", "{you}, someone special is here! 🐰", "Is that... YES! It's {wife}! 💕"],
+    arrive: ["Did someone miss me? 🥰", "Surprise, {you}! I missed you too! 💕", "Hi my love! 🐰💕"],
+    kiss: ["Mwah! 💋", "A kiss for my favourite person! 💋", "*mwah* That one's just for you! 💋"],
+    hug: ["*biiig hug* 🤗", "Come here, you! *squeeeze* 🤗", "*the warmest hug ever* 🤗💕"],
+    bye: ["Love you! See you soon! 💕", "Gotta hop! Miss you already! 🐰💕", "Bye my love! Don't work too hard! 💕"],
+    poke: ["Hehe, stop it! 😘", "Hi you! 💕", "*twitches nose* 🐰", "Boop right back! 💋"],
+    dadAww: ["Aww 🥹", "You two are so cute! 💕", "*covers eyes* ...okay I'm peeking. 🙈"],
+    dadAfter: ["She's the best, huh? 💕", "Feeling better now? 🥰", "Love is in the air... and on the dock! 💕"]
+  },
   twins: {
     arrive: ["Daddy!! 💕", "We're heeere!", "Suwpwise!", "Daddy Daddy Daddy!"],
     dadHello: ["Look who's here! My girls! 💕 Say hi to {you}, girls!", "Uh oh... incoming twins! 😄", "My two favourite curly heads! 🦊💕"],
