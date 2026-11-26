@@ -10,6 +10,7 @@ Fire-red fur, a red bandana, and a cheeky grin.
   - 💬 **Ask:** Motivate me, Creative idea, Tell a joke, Calm me down, Cheer me up, Let's talk
   - 🦊 **Timmy:** Feed a carrot, Coffee break, Do a trick, Say hi, Bedtime
   - ⚙️ **Settings:** sounds, email and message alerts, come-to-my-pointer, open at login, API key, updates, forget my memories, quit
+  **Chatting** (💬 Let's talk, or double-click Timmy) is a real conversation: the box stays open, he answers, and you answer back. Press **Esc** to end the chat.
   If a bubble needs more room, Timmy's strip grows taller for it, so nothing gets cut off.
 - **Walks to your pointer.** Rest your mouse pointer on Timmy's line for a second and he trots over to it. Switch it off in ⚙️ Settings.
 - **Talks with you like a friend.** Double-click him (or pick 💬 Let's talk) and type anything.

@@ -105,7 +105,7 @@
   // ---------- speech bubbles ----------
   const bubbleRoot = document.getElementById('bubbles');
   const bubbles = new Map(); // speaker -> {el, text, shown, t, life}
-  function say(who, text, { buttons = null, life = null, kid = false, custom = null, menu = false } = {}) {
+  function say(who, text, { buttons = null, life = null, kid = false, custom = null, menu = false, you = null, chat = false } = {}) {
     const speaker = dad;
     shut(who);
     const el = document.createElement('div');
@@ -113,6 +113,7 @@
     const name = cfg.foxName;
     el.innerHTML = `<span class="who"></span><span class="txt"></span>`;
     el.querySelector('.who').textContent = name;
+    if (you) { const y = document.createElement('span'); y.className = 'you'; y.textContent = 'You: ' + you; el.insertBefore(y, el.firstChild); }
     if (buttons) {
       const row = document.createElement('div'); row.className = 'btns';
       buttons.forEach(([label, fn]) => { const b = document.createElement('button'); b.textContent = label; b.onclick = (e) => { e.stopPropagation(); fn(); }; row.appendChild(b); });
@@ -121,7 +122,7 @@
     if (custom) custom(el);
     bubbleRoot.appendChild(el);
     const full = fill(text);
-    const b = { menu: !!custom, interactive: !!(buttons || custom), el, speaker, full, shown: 0, t: 0, life: life || (buttons || custom ? 60 : Math.max(4, full.length * 0.07 + 2.5)), kid: who !== 'dad' };
+    const b = { chat, menu: !!custom, interactive: !!(buttons || custom), el, speaker, full, shown: 0, t: 0, life: life || (buttons || custom ? 60 : Math.max(4, full.length * 0.07 + 2.5)), kid: who !== 'dad' };
     bubbles.set(who, b);
     return b;
   }
@@ -155,7 +156,7 @@
       const half = (b.el.offsetWidth || 200) / 2 + 6;
       b.el.style.left = clamp(b.speaker.x, half, W - half) + 'px';
       b.el.style.bottom = (H - speakerTop(b.speaker) + 14) + 'px';
-      if (b.t > b.life) { b.speaker.mouth = false; shut(who); }
+      if (b.t > b.life && !(b.chat && chatOpen)) { b.speaker.mouth = false; shut(who); }
     }
   }
 
@@ -226,7 +227,7 @@
     return !!(el && el.closest && el.closest('.bubble, #chat'));
   }
   function refreshIgnore() {
-    const want = !(chatOpen || keyOpen || drag || mode === 'berries' || mode === 'chase' || (mouse.inside && (hitAt(mouse.x, mouse.y) || overUI(mouse.x, mouse.y))));
+    const want = !(keyOpen || drag || mode === 'berries' || mode === 'chase' || (mouse.inside && (hitAt(mouse.x, mouse.y) || overUI(mouse.x, mouse.y))));
     if (want !== ignoring) { ignoring = want; api.setIgnoreMouse(want); document.body.style.cursor = want ? '' : 'pointer'; }
   }
 
@@ -355,9 +356,9 @@
   window.addEventListener('blur', () => {
     if (keyOpen) return;
     if (game && game.kind === 'berries') return;
-    if (chatOpen) closeChat();
-    closeMenus();
+    closeMenus(); // the chat box stays open: only Esc closes it
   });
+  window.addEventListener('focus', () => { if (chatOpen && !chatInput.disabled) chatInput.focus(); });
   const openAskMenu = () => openMainMenu('ask');
   const openPlayMenu = () => openMainMenu('play');
   function doTrick() {
@@ -385,9 +386,9 @@
     if (kind === 'joke') dad.eyes = 'happy', setTimeout(() => (dad.eyes = 'open'), 1500);
   }
   // Sends a message to Claude. Returns null when there is no API key (offline).
-  async function talk(text) {
+  async function talk(text, opts = {}) {
     scene++;
-    const thinking = say('dad', '...', { life: 40 });
+    const thinking = say('dad', '...', { life: 40, you: opts.you || null, chat: !!opts.you });
     let dots = 0; const iv = setInterval(() => { dots = (dots + 1) % 4; if (bubbles.get('dad') === thinking) { thinking.full = '.'.repeat(dots + 1); thinking.shown = thinking.full.length; thinking.el.querySelector('.txt').textContent = thinking.full; } }, 350);
     dad.eyes = 'happy';
     let res;
@@ -491,25 +492,41 @@
 
   // ---------- chat ----------
   let chatOpen = false;
+  // A real conversation: the box stays open, Timmy answers above it, you answer back.
+  // Only Esc closes it.
+  function placeChat() {
+    const right = dad.x < W - 340; // put the box on whichever side of Timmy has room
+    chatBox.style.left = clamp(dad.x + (right ? 235 : -235), 150, W - 150) + 'px';
+    chatBox.style.bottom = '10px';
+  }
   function openChat() {
     if (mode === 'sleep') { say('dad', 'zzz... (it\'s sleepy time — talk tomorrow? 🌙)'); return; }
-    if (mode === 'nap') wakeUp('back');
+    if (mode === 'nap') wakeUp('quiet');
+    closeMenus();
+    scene++;
     chatOpen = true; chatBox.style.display = 'block';
-    chatBox.style.left = clamp(dad.x, 150, W - 150) + 'px';
-    chatBox.style.bottom = (H - speakerTop(dad) + 14) + 'px';
-    shut('dad');
+    dad.target = null; if (dad.kind === 'walk') dad.kind = 'stand';
+    placeChat();
+    if (!bubbles.get('dad')) say('dad', pick(["I'm all ears! 🦊", "What's up, {you}?", "Tell me everything!"]), { chat: true });
+    else bubbles.get('dad').chat = true;
     api.focus(); setTimeout(() => chatInput.focus(), 30);
     refreshIgnore();
   }
-  function closeChat() { chatOpen = false; chatBox.style.display = 'none'; chatInput.value = ''; api.blur(); refreshIgnore(); }
+  function closeChat() {
+    chatOpen = false; chatBox.style.display = 'none'; chatInput.value = ''; chatInput.disabled = false;
+    const b = bubbles.get('dad'); if (b && b.chat) shut('dad');
+    api.blur(); refreshIgnore();
+  }
   chatInput.addEventListener('keydown', async (e) => {
-    if (e.key === 'Escape') return closeChat();
-    if (e.key !== 'Enter') return;
+    if (e.key === 'Escape') { e.stopPropagation(); return closeChat(); }
+    if (e.key !== 'Enter' || chatInput.disabled) return;
     const text = chatInput.value.trim();
-    closeChat();
     if (!text) return;
-    const res = await talk(text);
-    if (res && res.text) say('dad', res.text);
+    chatInput.value = ''; chatInput.disabled = true; chatInput.placeholder = `${cfg.foxName} is thinking…`;
+    const res = await talk(text, { you: text });
+    chatInput.disabled = false; chatInput.placeholder = 'say something to your fox…';
+    if (chatOpen) { placeChat(); chatInput.focus(); }
+    if (res && res.text) say('dad', res.text, { you: text, chat: true });
     else if (!res) {
       if (/carrot|hungry|food|eat|snack/i.test(text)) return eatCarrot(true);
       if (/play|game|bored/i.test(text)) return openPlayMenu();
@@ -518,8 +535,8 @@
       if (/joke|funny|laugh/i.test(text)) return askFor('joke');
       if (/stress|anxious|calm|overwhelm|panic/i.test(text)) return askFor('calm');
       const kw = L.keyword.find(([re]) => re.test(text));
-      if (kw) say('dad', pick(kw[1]));
-      else say('dad', "I'd love to really chat! Add an API key and I'll talk back properly.", { buttons: [['🔑 Add API key', openKeyPrompt], ['Later', () => shut('dad')]] });
+      if (kw) say('dad', pick(kw[1]), { you: text, chat: true });
+      else say('dad', "I'd love to really chat! Add an API key and I'll talk back properly.", { you: text, chat: true, buttons: [['🔑 Add API key', () => { closeChat(); openKeyPrompt(); }]] });
     }
   });
 
@@ -772,7 +789,7 @@
     if (dad.hunger >= 70 && !bubbles.size && !game && Date.now() - hungryAsked > 15 * 60 * 1000) askForCarrot();
 
     // stay put while his menu (or any question) is open
-    const busy = [...bubbles.values()].some((b) => b.interactive);
+    const busy = chatOpen || [...bubbles.values()].some((b) => b.interactive);
     // 🐾 rest your pointer on his line for a second and he trots over
     if (cfg.followPointer !== false && !busy && mouse.inside && !drag && mouse.y > GROUND - DAD.h - 10 &&
         performance.now() - mouse.stillSince > 900 && Math.abs(mouse.x - dad.x) > 45 && pointerGoal === null) {
