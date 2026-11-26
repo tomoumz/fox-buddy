@@ -224,6 +224,12 @@ const TOOLS = [
     input_schema: { type: 'object', properties: {}, required: [], additionalProperties: false }
   },
   {
+    name: 'set_my_name',
+    description: 'Save the name your friend wants you to call them. Use it whenever they tell you their name or a nickname.',
+    strict: true,
+    input_schema: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'], additionalProperties: false }
+  },
+  {
     name: 'remember',
     description: "Save one short fact about your friend to long-term memory: their name, what they like, their goals, projects, important dates, how they've been feeling. Use it whenever they share something a good friend would remember. Never save passwords or other secrets.",
     strict: true,
@@ -231,14 +237,41 @@ const TOOLS = [
   }
 ];
 
+// The system prompt never changes between messages; what Timmy knows about you
+// (your name, his memories, the time) is sent fresh with each message instead.
 function systemPrompt() {
-  const you = config.yourName ? `Your best friend's name is ${config.yourName}.` : "If you don't know your friend's name yet, ask for it at a natural moment and remember it.";
-  const mem = (state.memories || []).length ? `\nThings you remember about your friend:\n- ${state.memories.join('\n- ')}` : '';
-  return `You are ${config.foxName}, a small pixel-art arcade fox who lives on the bottom edge of your best friend's laptop screen, just above the dock. ${you}
+  return `You are ${config.foxName}, a small pixel-art arcade fox who lives on the bottom edge of your best friend's laptop screen, just above the dock.
 Look: fire-red fur, white muzzle, a red bandana with a white knot, a cheeky confident cartoon-mascot grin.
 Personality: cocky in a lovable way but warm, playful, loyal and a bit goofy; can't start the morning without your coffee ☕, loves carrots (your favourite snack: you get hungry during the day and munch one, crunch crunch), berries, retro arcade games, high scores and naps.
-You are their friend, not an assistant: you hang out, joke around, notice how they're doing, cheer them on and gently remind them to drink water, stretch and sleep. When they ask for motivation, make it personal and concrete. When they ask for creative ideas, give one specific, fun idea they can start today. When they want to play, start a game with the start_game tool. When they share something about themselves, save it with the remember tool and bring it up later like a real friend would.
-Style: you talk in a tiny speech bubble, so reply in 1-3 short sentences (under 50 words), casual and kind, with at most one emoji. Never use markdown, lists or headings. Stay in character as ${config.foxName}; if asked, you can say you are an AI fox friend made with Claude.${mem}`;
+You are their friend, not an assistant: you hang out, joke around, notice how they're doing, cheer them on and gently remind them to drink water, stretch and sleep. When they ask for motivation, make it personal and concrete. When they ask for creative ideas, give one specific, fun idea they can start today. When they want to play, start a game with the start_game tool. When they tell you their name or what to call them, save it with set_my_name. When they share something else about themselves, save it with the remember tool and bring it up later like a real friend would.
+Each message from your friend starts with a [note] saying the time, your friend's name and what you remember about them. Use it naturally; never mention the note.
+Style: you talk in a tiny speech bubble, so reply in 1-3 short sentences (under 50 words), casual and kind, with at most one emoji. Never use markdown, lists or headings. Stay in character as ${config.foxName}; if asked, you can say you are an AI fox friend made with Claude.`;
+}
+function contextNote(mode) {
+  const stamp = new Date().toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' });
+  const name = config.yourName ? `Their name: ${config.yourName}.` : "You don't know their name yet; ask at a natural moment.";
+  const mem = (state.memories || []).length ? ` You remember: ${state.memories.join('; ')}.` : '';
+  return `[note: ${stamp}. You are ${mode || 'awake'}. ${name}${mem}]`;
+}
+
+// "call me Tomoum" / "my name is Tomoum": remembered right away, even without an API key.
+function catchName(text) {
+  const m = String(text).match(/\b(?:call me|my name is|my name's|name's)\s+([\p{L}][\p{L}'-]{0,24})/iu);
+  if (!m) return null;
+  const name = m[1].charAt(0).toUpperCase() + m[1].slice(1);
+  setName(name);
+  return name;
+}
+function setName(name) {
+  config.yourName = String(name).trim().slice(0, 30);
+  saveConfig(); rebuildMenus();
+}
+
+function logError(err) {
+  try {
+    const line = `${new Date().toISOString()} ${err?.status || ''} ${err?.name || ''}: ${String(err?.message || err).slice(0, 600)}\n`;
+    fs.appendFileSync(path.join(userDir(), 'timmy-errors.log'), line);
+  } catch {}
 }
 
 // Keep the saved conversation short, and make it start at a real user turn.
@@ -248,56 +281,76 @@ function trimHistory(msgs) {
   return h;
 }
 
-async function chat(userText, context) {
-  const apiKey = getApiKey();
-  if (!apiKey && !process.env.ANTHROPIC_AUTH_TOKEN) return { offline: true };
-  const client = new Anthropic(apiKey ? { apiKey } : {});
-  const stamp = new Date().toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' });
-  const messages = [...trimHistory(state.chatHistory || []), { role: 'user', content: `[${stamp}, you are ${context?.mode || 'awake'}] ${userText}` }];
+// Runs tools Timmy used, returns the tool_result blocks.
+function runTools(content, actions) {
+  const results = [];
+  for (const block of content) {
+    if (block.type !== 'tool_use') continue;
+    let out = 'ok';
+    if (block.name === 'eat_carrot') { actions.push({ type: 'eat' }); out = 'You are munching the carrot now.'; }
+    else if (block.name === 'start_game') { actions.push({ type: 'game', game: block.input.game }); out = `The ${block.input.game} game starts in a moment.`; }
+    else if (block.name === 'set_my_name') { setName(block.input.name || ''); out = `Saved. Their name is ${config.yourName}.`; }
+    else if (block.name === 'remember') {
+      const fact = String(block.input.fact || '').slice(0, 200);
+      if (fact) state.memories = [...(state.memories || []).filter((m) => m !== fact), fact].slice(-60);
+      out = 'Saved.';
+    } else out = 'Unknown tool.';
+    results.push({ type: 'tool_result', tool_use_id: block.id, content: out });
+  }
+  return results;
+}
+
+async function askClaude(client, history, userText, mode, simple) {
+  // History holds only plain text (no thinking blocks), so it can be trimmed freely.
+  const messages = [...history, { role: 'user', content: `${contextNote(mode)} ${userText}` }];
   const actions = [];
   let text = '';
+  for (let step = 0; step < 4; step++) {
+    const params = { model: config.model || 'claude-opus-5-5', max_tokens: 2048, output_config: { effort: 'low' }, system: systemPrompt(), tools: TOOLS, messages };
+    const response = simple
+      ? await client.messages.create({ ...params, tools: TOOLS.map(({ strict, ...t }) => t) })
+      : await client.beta.messages.create({ ...params, betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' });
+    if (response.stop_reason === 'refusal') return { text: "Hmm, let's talk about something else. Wanna play Berry Catch? 🍓", actions };
+    const said = response.content.filter((b) => b.type === 'text').map((b) => b.text).join(' ').trim();
+    if (said) text = said;
+    if (response.stop_reason !== 'tool_use') break;
+    // within this one turn the full reply (with thinking) is passed back unchanged
+    messages.push({ role: 'assistant', content: response.content });
+    messages.push({ role: 'user', content: runTools(response.content, actions) });
+  }
+  return { text: text || '*happy tail wag*', actions };
+}
+
+let useSimple = false; // after one rejected request, stick to the simple request this session
+async function chat(userText, context) {
+  const gotName = catchName(userText);
+  const apiKey = getApiKey();
+  if (!apiKey && !process.env.ANTHROPIC_AUTH_TOKEN) {
+    return gotName ? { text: `Got it! I'll call you ${gotName} from now on. 🧡` } : { offline: true };
+  }
+  const client = new Anthropic(apiKey ? { apiKey } : {});
+  const history = trimHistory((state.chatHistory || []).filter((m) => typeof m.content === 'string'));
+  let res;
   try {
-    for (let step = 0; step < 4; step++) {
-      const response = await client.beta.messages.create({
-        model: config.model || 'claude-opus-5-5',
-        max_tokens: 2048,
-        output_config: { effort: 'low' },
-        betas: ['server-side-fallback-2026-07-01'],
-        fallbacks: 'default',
-        system: systemPrompt(),
-        tools: TOOLS,
-        messages
-      });
-      if (response.stop_reason === 'refusal') return { text: "Hmm, let's talk about something else. Wanna play Berry Catch? 🍓", actions };
-      messages.push({ role: 'assistant', content: response.content });
-      const said = response.content.filter((b) => b.type === 'text').map((b) => b.text).join(' ').trim();
-      if (said) text = said;
-      if (response.stop_reason !== 'tool_use') break;
-      const results = [];
-      for (const block of response.content) {
-        if (block.type !== 'tool_use') continue;
-        let out = 'ok';
-        if (block.name === 'eat_carrot') { actions.push({ type: 'eat' }); out = 'You are munching the carrot now.'; }
-        else if (block.name === 'start_game') { actions.push({ type: 'game', game: block.input.game }); out = `The ${block.input.game} game starts in a moment.`; }
-        else if (block.name === 'remember') {
-          const fact = String(block.input.fact || '').slice(0, 200);
-          if (fact) state.memories = [...(state.memories || []).filter((m) => m !== fact), fact].slice(-60);
-          out = 'Saved.';
-        } else out = 'Unknown tool.';
-        results.push({ type: 'tool_result', tool_use_id: block.id, content: out });
-      }
-      messages.push({ role: 'user', content: results });
-    }
-    state.chatHistory = trimHistory(messages);
-    saveJSON(statePath(), state);
-    return { text: text || '*happy tail wag*', actions };
+    res = await askClaude(client, history, userText, context?.mode, useSimple);
   } catch (err) {
-    if (err instanceof Anthropic.AuthenticationError) return { text: 'My API key looks wrong. Check Settings in my menu? 🔑' };
+    logError(err);
+    if (err instanceof Anthropic.AuthenticationError) return { text: 'My API key looks wrong. Check ⚙️ Settings → API key? 🔑' };
     if (err instanceof Anthropic.RateLimitError) return { text: 'Phew, I need a breather. Talk again in a minute?' };
     if (err instanceof Anthropic.APIConnectionError) return { text: "I can't reach the internet right now. Still here for games though!" };
-    console.error(err);
-    return { text: 'My brain did a little glitch. Try again?' };
+    if (err instanceof Anthropic.PermissionDeniedError || /credit|billing|balance/i.test(String(err?.message))) return { text: 'My API account needs a little credit (console.anthropic.com → Billing). 🪙' };
+    // Something about the request was rejected: try once more, simpler and without old history.
+    try { res = await askClaude(client, [], userText, context?.mode, true); useSimple = true; }
+    catch (err2) {
+      logError(err2);
+      const why = String(err2?.error?.error?.message || err2?.message || 'unknown').slice(0, 90);
+      return { text: `My brain glitched (${why}). Try again?` };
+    }
   }
+  if (gotName && !res.text.includes(gotName)) res.text = `${gotName}! Got it. ` + res.text;
+  state.chatHistory = trimHistory([...history, { role: 'user', content: userText }, { role: 'assistant', content: res.text }]);
+  saveJSON(statePath(), state);
+  return res;
 }
 
 // ---------- new email / message alerts (macOS) ----------
@@ -539,6 +592,12 @@ app.whenReady().then(() => {
   createTray();
   startWatchers();
   startUpdateChecks();
+  if (!app.isPackaged && process.env.FOX_CHAT_SELFTEST) { // developer test only
+    setTimeout(async () => {
+      for (const t of process.env.FOX_CHAT_SELFTEST.split('|')) console.log('FOXCHAT', JSON.stringify(t), '->', JSON.stringify(await chat(t, { mode: 'awake' })), '| name:', config.yourName);
+      app.exit(0);
+    }, 1500);
+  }
 
   // He wakes up and naps with your laptop.
   powerMonitor.on('suspend', () => send('power', 'suspend'));
