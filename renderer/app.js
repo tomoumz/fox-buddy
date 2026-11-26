@@ -104,6 +104,7 @@
     blink: false, mouth: false, wag: 0, breath: false, carrying: false, emote: 0 };
   let mode = 'awake'; // awake | sleep | nap | coffee | eating | berries | fetch | chase | dance
   let hungryAsked = 0;
+  let updateWaiting = null; // an update found while Timmy slept: shown when he wakes up
   let manualSleepUntil = 0, stayUpUntil = 0, lateWarned = 0;
   let thinkT = 3, chatterT = 40, breakT = (cfg.breakReminderMinutes || 50) * 60;
   const particles = [];
@@ -127,7 +128,7 @@
     const el = document.createElement('div');
     el.className = 'bubble' + (menu || (buttons && buttons.length > 3) ? ' menu' : '') + (who === 'dad' ? '' : who === 'wife' ? ' wife' : ' kid');
     const name = who === 'dad' ? cfg.foxName : who === 'wife' ? wifeName() : twinNames()[who];
-    el.innerHTML = `<span class="who"></span><span class="txt"></span>`;
+    el.innerHTML = `<span class="who"></span><span class="txt"><span class="shown"></span><span class="rest"></span></span>`;
     el.querySelector('.who').textContent = name;
     if (you) { const y = document.createElement('span'); y.className = 'you'; y.textContent = 'You: ' + you; el.insertBefore(y, el.firstChild); }
     if (buttons) {
@@ -138,15 +139,17 @@
     if (custom) custom(el);
     bubbleRoot.appendChild(el);
     const full = fill(text, typeof who === 'number' ? twinNames()[1 - who] : undefined);
+    el.querySelector('.rest').textContent = full; // lay out the whole message now, so the bubble never resizes while typing
     const b = { chat, menu: !!custom, interactive: !!(buttons || custom), el, speaker, full, shown: 0, t: 0, life: life || (buttons || custom ? 60 : Math.max(4, full.length * 0.07 + 2.5)), kid: who !== 'dad' };
     bubbles.set(who, b);
     return b;
   }
   function shut(who) { const b = bubbles.get(who); if (b) { b.el.remove(); bubbles.delete(who); } }
-  function speakerTop(s = dad) {
-    if (s === wife) return GROUND - (BUN.h - 6) - s.jump;
-    if (s !== dad) return GROUND - (KIT.h - 6) - s.jump;
-    return GROUND - (dad.kind === 'sleep' ? 50 : DAD.h - 8) - dad.jump;
+  function speakerTop(s = dad, steady = false) {
+    const j = steady ? 0 : s.jump; // bubbles stay put while their speaker hops
+    if (s === wife) return GROUND - (BUN.h - 6) - j;
+    if (s !== dad) return GROUND - (KIT.h - 6) - j;
+    return GROUND - (dad.kind === 'sleep' ? 50 : DAD.h - 8) - j;
   }
   // Make Timmy's strip of screen taller while a big bubble is showing, so nothing gets cut off.
   let wantH = 0, heightT = 0;
@@ -164,16 +167,24 @@
   function updateBubbles(dt) {
     for (const [who, b] of bubbles) {
       b.t += dt;
-      if (b.shown < b.full.length) {
+      const chars = b.chars || (b.chars = Array.from(b.full)); // whole characters, so emojis never split in half
+      if (b.shown < chars.length) {
         const before = Math.floor(b.shown);
-        b.shown = Math.min(b.full.length, b.shown + dt * 40);
-        if (Math.floor(b.shown) !== before && before % 2 === 0 && b.full[before] !== ' ') sfx.blip(b.kid);
-        b.el.querySelector('.txt').textContent = b.full.slice(0, Math.floor(b.shown));
+        b.shown = Math.min(chars.length, b.shown + dt * 40);
+        const now = Math.floor(b.shown);
+        if (now !== before) {
+          if (before % 2 === 0 && chars[before] !== ' ') sfx.blip(b.kid);
+          b.el.querySelector('.shown').textContent = chars.slice(0, now).join('');
+          b.el.querySelector('.rest').textContent = chars.slice(now).join('');
+        }
       }
-      b.speaker.mouth = b.shown < b.full.length && Math.floor(b.t * 8) % 2 === 0;
-      const half = (b.el.offsetWidth || 200) / 2 + 6;
-      b.el.style.left = clamp(b.speaker.x, half, W - half) + 'px';
-      b.el.style.bottom = (H - speakerTop(b.speaker) + 14) + 'px';
+      b.speaker.mouth = b.shown < chars.length && Math.floor(b.t * 8) % 2 === 0;
+      // steady position: only move when the speaker really walks, not when he hops; whole pixels only
+      const half = Math.ceil((b.el.offsetWidth || 200) / 2) + 6;
+      const left = Math.round(clamp(b.speaker.x, half, W - half));
+      const bottom = Math.round(H - speakerTop(b.speaker, true) + 14);
+      if (left !== b.left) { b.left = left; b.el.style.left = left + 'px'; }
+      if (bottom !== b.bottom) { b.bottom = bottom; b.el.style.bottom = bottom + 'px'; }
       if (b.t > b.life && !(b.chat && chatOpen)) { b.speaker.mouth = false; shut(who); }
     }
   }
@@ -204,6 +215,7 @@
     }
     breakT = (cfg.breakReminderMinutes || 50) * 60;
     chatterT = rand(60, 120);
+    if (updateWaiting) { const u = updateWaiting; setTimeout(() => { if (mode === 'awake' && !game) showUpdate(u); }, kind === 'morning' ? 14000 : 2500); }
   }
   function goToSleep(kind = 'night') {
     endGame(true);
@@ -415,7 +427,7 @@
   async function talk(text, opts = {}) {
     scene++;
     const thinking = say('dad', '...', { life: 40, you: opts.you || null, chat: !!opts.you });
-    let dots = 0; const iv = setInterval(() => { dots = (dots + 1) % 4; if (bubbles.get('dad') === thinking) { thinking.full = '.'.repeat(dots + 1); thinking.shown = thinking.full.length; thinking.el.querySelector('.txt').textContent = thinking.full; } }, 350);
+    let dots = 0; const iv = setInterval(() => { dots = (dots + 1) % 4; if (bubbles.get('dad') === thinking) { thinking.full = '.'.repeat(dots + 1); thinking.chars = Array.from(thinking.full); thinking.shown = thinking.chars.length; thinking.el.querySelector('.shown').textContent = thinking.full; thinking.el.querySelector('.rest').textContent = ''; } }, 350);
     dad.eyes = 'happy';
     let res;
     try { res = await api.chat(text, { mode }); } catch { res = { text: 'My brain did a little glitch. Try again?' }; }
@@ -863,9 +875,15 @@
   api.on('config', (c) => { cfg = c; loadCustom(); });
   // Updates: Timmy offers to update himself.
   api.on('update', (u) => {
+    // you asked (Check for updates / Update now): wake him up to answer
+    if (u.manual || u.upToDate || u.error) { if (mode === 'sleep' || mode === 'nap') wakeUp('quiet'); }
     if (u.upToDate) return say('dad', `I'm all up to date! Version ${u.version}. 😎`);
     if (u.error) return say('dad', "I couldn't check for updates right now. Is the internet on?");
-    if (mode === 'sleep' || mode === 'nap') return; // he'll mention it in the menu instead
+    if (mode === 'sleep' || mode === 'nap') { updateWaiting = u; return; }
+    showUpdate(u);
+  });
+  function showUpdate(u) {
+    updateWaiting = null;
     scene++;
     dad.vy = 260; dad.star = 1.4; sfx.fanfare();
     burst('text', dad.x, GROUND - DAD.h - 10, 1, 'NEW!');
@@ -877,7 +895,7 @@
       }],
       ['Later', () => shut('dad')]
     ] });
-  });
+  }
 
   // New email / message: Timmy hops up and tells you.
   api.on('notify', (n) => {
@@ -942,6 +960,7 @@
     if (busy) { if (dad.kind === 'walk' && pointerGoal === null) dad.target = null; return; }
     // wandering
     thinkT -= dt;
+    if (bubbles.has('dad') && thinkT < 2) thinkT = 2; // finish talking before strolling off
     if (thinkT <= 0) {
       thinkT = rand(4, 12);
       const r = Math.random();

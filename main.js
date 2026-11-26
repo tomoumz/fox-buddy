@@ -154,7 +154,7 @@ function buildMenu() {
     { label: `Forget what ${n} remembers about me`, click: () => { state.memories = []; state.chatHistory = []; saveJSON(statePath(), state); send('command', 'forgot'); } },
     { label: 'Settings (name, bedtime)…', click: () => shell.openPath(configPath()) },
     pendingUpdate
-      ? { label: `⬆️ Update to version ${pendingUpdate.version}`, click: () => send('update', { version: pendingUpdate.version, notes: pendingUpdate.notes || '' }) }
+      ? { label: `⬆️ Update to version ${pendingUpdate.version}`, click: () => send('update', { version: pendingUpdate.version, notes: pendingUpdate.notes || '', manual: true }) }
       : { label: `Check for updates (you have v${FOX.version})`, click: () => checkForUpdates(true) },
     { type: 'separator' },
     { label: `Say goodbye to ${n} (quit)`, click: () => app.quit() }
@@ -484,7 +484,7 @@ async function checkForUpdates(manual) {
     if (!m || !/^\d+\.\d+\.\d+$/.test(m.version) || !/^[\w.-]+\.tar\.gz$/.test(m.file) || !/^[a-f0-9]{64}$/.test(m.sha256)) throw new Error('bad manifest');
     if (FOX.isNewer(m.version, FOX.version)) {
       pendingUpdate = m;
-      send('update', { version: m.version, notes: String(m.notes || '').slice(0, 200) });
+      send('update', { version: m.version, notes: String(m.notes || '').slice(0, 200), manual: !!manual });
       rebuildMenus();
     } else if (manual) send('update', { upToDate: true, version: FOX.version });
   } catch (e) {

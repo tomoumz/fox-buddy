@@ -12,7 +12,7 @@
   .bubble { position: absolute; max-width: 260px; padding: 8px 11px; background: #fffaf0; color: #2b1b17;
     font-size: 12px; line-height: 1.45; font-weight: 600; letter-spacing: .2px;
     box-shadow: 0 -3px 0 #2b1b17, 0 3px 0 #2b1b17, -3px 0 0 #2b1b17, 3px 0 0 #2b1b17, 0 6px 0 rgba(0,0,0,.18);
-    transform: translateX(-50%); transition: opacity .2s; pointer-events: auto; }
+    transform: translateX(-50%); pointer-events: auto; }
   .bubble::after { content: ""; position: absolute; left: 50%; bottom: -12px; width: 6px; height: 6px; background: #2b1b17;
     box-shadow: 0 -3px 0 #fffaf0, 3px -3px 0 #2b1b17, -3px -3px 0 #2b1b17; }
   .bubble.menu { width: 430px; max-width: calc(100vw - 24px); box-sizing: border-box; }
@@ -28,6 +28,8 @@
   .bubble .btns.grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .bubble .you { display: block; font-size: 10px; font-weight: 500; color: #7a6a5c; margin-bottom: 5px; padding-bottom: 5px; border-bottom: 2px dashed #e8dccb; }
   #chat input:disabled { opacity: .7; }
+  .bubble .txt .rest { color: transparent; }
+  .bubble { will-change: left, bottom; }
   .bubble .who { display: block; font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px; color: #b5511b; margin-bottom: 2px; }
   .bubble .btns { display: flex; gap: 6px; margin-top: 7px; flex-wrap: wrap; }
   .bubble button { font: inherit; font-size: 11px; cursor: pointer; border: 0; padding: 4px 8px; background: #ec7a2c; color: #fff;
