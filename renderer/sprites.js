@@ -52,35 +52,45 @@ function drawDad(g, pose) {
   const b = walking ? (f % 2) : (pose.breath ? 1 : 0);
   const w = pose.wag || 0;
 
+  if (sit) {
+    // SITTING: tail curled on the ground, haunches tucked at the back,
+    // upright chest right under his head, front legs straight down.
+    r(3, 28, 12, 4, 'O'); r(5, 28, 8, 1, 'L'); r(0, 27, 4, 5, 'C'); r(1, 26, 2, 1, 'C');   // tail
+    r(11, 20, 13, 12, 'O'); r(12, 19, 10, 1, 'O'); r(10, 23, 1, 8, 'O'); r(13, 20, 8, 1, 'L'); // haunch
+    r(11, 31, 13, 1, 'D'); r(15, 23, 4, 1, 'D'); r(14, 24, 1, 1, 'D'); r(13, 25, 1, 5, 'D');      // rounded thigh line
+    r(14, 30, 7, 2, 'K');                                                                        // back paw
+    r(21, 16 + b, 9, 16 - b, 'O');                                                               // upright chest
+    r(23, 19 + b, 7, 8 - b, 'C'); r(24, 18 + b, 5, 1, 'C');                                      // big white chest
+    r(24, 26, 1, 6, 'D'); r(25, 26, 3, 6, 'O'); r(28, 26, 1, 6, 'D'); r(29, 26, 3, 6, 'O');      // front legs
+    r(25, 30, 3, 2, 'K'); r(29, 30, 3, 2, 'K');                                                  // socks
+  } else {
   // big bushy tail with white tip
-  const ty = sit ? 6 : 0;
-  r(8, 17 + ty, 3, 4, 'O');
-  r(3, 13 + w + ty, 7, 7, 'O');
-  r(4, 14 + w + ty, 5, 1, 'L');
-  r(2, 19 + w + ty, 2, 1, 'O');
-  r(1, 11 + w + ty, 4, 5, 'O');
-  r(0, 10 + w + ty, 3, 3, 'C');
+  r(8, 17, 3, 4, 'O');
+  r(3, 13 + w, 7, 7, 'O');
+  r(4, 14 + w, 5, 1, 'L');
+  r(2, 19 + w, 2, 1, 'O');
+  r(1, 11 + w, 4, 5, 'O');
+  r(0, 10 + w, 3, 3, 'C');
 
   // legs
   const lift = (i) => (walking ? ((f + i) % 2) : 0);
-  const legs = sit ? [[11, 0], [15, 0], [21, 0], [24, 0]] : [[10, 0], [14, 1], [20, 1], [24, 0]];
+  const legs = [[10, 0], [14, 1], [20, 1], [24, 0]];
   legs.forEach(([x, phase], i) => {
     const l = lift(phase);
     const fx = stretch && i >= 2 ? x + 2 : x;
-    const top = sit && i < 2 ? 29 : 26;
-    const h = 6 - l - (top - 26);
-    r(fx, top, 3, h, i < 2 ? 'D' : 'O');
-    r(fx, top + h - 2, 3, 2, 'K');
+    const h = 6 - l;
+    r(fx, 26, 3, h, i < 2 ? 'D' : 'O');
+    r(fx, 26 + h - 2, 3, 2, 'K');
   });
 
   // body
-  const by = sit ? 21 : 17;
-  r(9, by + b, 17, 9, 'O');
-  r(11, by + b, 13, 1, 'L');
-  r(10, by + 8 + b, 15, 1, 'D');
-  r(14, by + 5 + b, 10, 3, 'C');
+  r(9, 17 + b, 17, 9, 'O');
+  r(11, 17 + b, 13, 1, 'L');
+  r(10, 25 + b, 15, 1, 'D');
+  r(14, 22 + b, 10, 3, 'C');
+  }
 
-  const hy = (stretch ? 4 : 0) + (sit ? 2 : 0) + b;
+  const hy = (stretch ? 4 : 0) + (sit ? 3 : 0) + b;
   // ears with white insides (front ear taller, like the logo)
   r(22, 3 + hy, 4, 6, 'O'); r(23, 1 + hy, 2, 2, 'O'); r(23, 4 + hy, 2, 4, 'C');
   r(29, 2 + hy, 4, 7, 'O'); r(30, 0 + hy, 2, 2, 'O'); r(30, 3 + hy, 2, 5, 'C');
