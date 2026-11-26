@@ -1,6 +1,6 @@
 {
-  "version": "1.5.3",
-  "file": "fox-buddy-1.5.3.tar.gz",
-  "sha256": "307ef4536845a795f1ffdf9d4168ce1a3491a949d3b275bfd312f7a022f72015",
-  "notes": "Smoother, steadier speech bubbles, and update checks now work even when I'm asleep."
+  "version": "1.5.4",
+  "file": "fox-buddy-1.5.4.tar.gz",
+  "sha256": "2949b5f6fffb6628250a841ffc376502b95d306cd582b83a11c597be4ce2469e",
+  "notes": "Chili Pepper walks gracefully now, no more hopping 🐰💕"
 }

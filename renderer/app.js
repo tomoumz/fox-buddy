@@ -282,7 +282,7 @@
     if (hit === 'dad' && mode !== 'berries' && mode !== 'chase') drag = { sx: e.clientX, moved: false };
     else if (hit === 'ball') throwBall();
     else if (hit && hit.twin !== undefined) pokeKit(hit);
-    else if (hit === 'wife') { wife.vy = 220; sfx.kiss(); burst('heart', wife.x, GROUND - BUN.h, 3); say('wife', pick(L.wife.poke)); }
+    else if (hit === 'wife') { wife.blush = 1.5; sfx.kiss(); burst('heart', wife.x, GROUND - BUN.h, 3); say('wife', pick(L.wife.poke)); }
   });
   window.addEventListener('mouseup', (e) => {
     if (!drag) return;
@@ -548,7 +548,7 @@
     const fromLeft = dad.x > W / 2;
     let spot = mouse.inside ? mouse.x : W / 2;
     if (Math.abs(spot - dad.x) < 170) spot = dad.x + (fromLeft ? -190 : 190);
-    wife = { x: fromLeft ? -50 : W + 50, jump: 0, vy: 0, dir: fromLeft ? 1 : -1, kind: 'walk', target: clamp(spot, 60, W - 60), speed: 120,
+    wife = { x: fromLeft ? -50 : W + 50, jump: 0, vy: 0, dir: fromLeft ? 1 : -1, kind: 'walk', target: clamp(spot, 60, W - 60), speed: 85, blush: 0,
       frame: 0, ft: 0, eyes: 'open', blink: false, mouth: false, wag: 0, breath: false, phase: 'arrive', t: 0, fromLeft };
     dad.target = null; dad.dir = fromLeft ? -1 : 1; dad.eyes = 'happy';
     say('dad', pick(L.wife.dadHello), { life: 3 });
@@ -557,8 +557,8 @@
     if (hugGlow > 0) hugGlow -= dt;
     if (!wife) return;
     const w = wife; w.t += dt;
-    if (w.target !== null && w.jump === 0 && w.vy === 0) { w.vy = 230; sfx.boing(); } // bunny hops
-    if (w.phase === 'arrive' && w.target === null && w.jump === 0) {
+    if (w.blush > 0) w.blush -= dt;
+    if (w.phase === 'arrive' && w.target === null) {
       w.phase = 'greet'; w.t = 0; w.dir = Math.sign(dad.x - w.x) || 1; // face Timmy w.kind = 'stand';
       say('wife', pick(L.wife.arrive)); burst('heart', w.x, GROUND - BUN.h, 2);
     } else if (w.phase === 'greet' && w.t > 2.6) {
@@ -575,9 +575,9 @@
       w.phase = 'bye'; w.t = 0; w.kind = 'stand';
       say('wife', pick(L.wife.bye));
     } else if (w.phase === 'bye' && w.t > 2.4) {
-      w.phase = 'leave'; w.t = 0; w.speed = 140; w.target = w.fromLeft ? -90 : W + 90;
+      w.phase = 'leave'; w.t = 0; w.speed = 95; w.target = w.fromLeft ? -90 : W + 90;
       later(() => say('dad', pick(L.wife.dadAfter), { life: 4 }), 1500);
-    } else if (w.phase === 'leave' && (w.x < -70 || w.x > W + 70 || w.t > 10)) { shut('wife'); wife = null; }
+    } else if (w.phase === 'leave' && (w.x < -70 || w.x > W + 70 || w.t > 16)) { shut('wife'); wife = null; }
     if (w.phase === 'leave' || w.phase === 'arrive') w.kind = 'walk';
   }
 

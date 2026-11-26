@@ -13,7 +13,7 @@ Fire-red fur, a red bandana, and a cheeky grin.
   **Chatting** (💬 Let's talk, or double-click Timmy) is a real conversation: the box stays open, he answers, and you answer back. Press **Esc** to end the chat.
   If a bubble needs more room, Timmy's strip grows taller for it, so nothing gets cut off.
 - **His twin daughters drop by.** Sussie (red headband) and Mimi (hair tie), identical 3-year-olds with big brown eyes and brown curls, run in now and then to play with their dad for about a minute, then run home. Click them and they giggle. Call them any time: 🦊 Timmy tab → 👧 Call Sussie & Mimi, or ask Timmy in chat. Switch the visits off in ⚙️ Settings.
-- **Chili Pepper visits when you miss her.** Your wife, a sweet white bunny with a little red chili-pepper clip, hops over, blows you a kiss 💋, gives you a big hug 🤗 and hops home. Call her with 🦊 Timmy tab → 💌 I miss Chili Pepper, the menu bar, or just tell Timmy "I miss my wife".
+- **Chili Pepper visits when you miss her.** Your wife, a sweet white bunny with a little red chili-pepper clip, walks over, blows you a kiss 💋, gives you a big hug 🤗 and hops home. Call her with 🦊 Timmy tab → 💌 I miss Chili Pepper, the menu bar, or just tell Timmy "I miss my wife".
 - **Walks to your pointer.** Rest your mouse pointer on Timmy's line for a second and he trots over to it. Switch it off in ⚙️ Settings.
 - **Talks with you like a friend.** Double-click him (or pick 💬 Let's talk) and type anything.
   With an Anthropic API key he answers in his own words and remembers things you tell him, like your name, your goals and what you love.

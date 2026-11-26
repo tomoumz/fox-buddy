@@ -216,35 +216,30 @@ function drawKit(g, pose) {
 // red lips and a little red chili-pepper clip on her ears.
 const BUNPAL = { F: '#ffffff', F2: '#ece3ea', E: '#ff9fb8', eye: '#2a1420', lip: '#e0254a', chili: '#e01e1e', chili2: '#ff5a4a', stem: '#3a9d23', blush: '#ffb3c6' };
 function bunPx(g) { const r0 = px(g); return (x, y, w, h, c) => r0(x, y, w, h, BUNPAL[c] || c); }
-// pose.kind: 'stand' | 'walk' (hopping) | 'kiss' | 'hug'
+// pose.kind: 'stand' | 'walk' (graceful little steps, no hopping) | 'kiss' | 'hug'
 function drawBunny(g, pose) {
   const r = bunPx(g);
-  const air = pose.jump > 2;
-  const b = pose.breath ? 1 : 0;
+  const walking = pose.kind === 'walk';
+  const step = walking ? (pose.frame || 0) % 2 : 0;
+  const b = walking ? step : (pose.breath ? 1 : 0); // gentle 1-pixel sway while walking
   // fluffy tail
   r(3, 20, 4, 4, 'F2'); r(2, 21, 1, 2, 'F2');
-  // feet: tucked when hopping
-  if (air) { r(3, 25, 6, 3, 'F'); r(0, 26, 4, 2, 'F'); r(0, 27, 4, 1, 'F2'); r(16, 26, 3, 4, 'F'); r(16, 29, 3, 1, 'F2'); } // back legs push, front paws reach
+  // feet: take turns stepping forward while she walks
+  if (step) { r(6, 28, 7, 3, 'F'); r(6, 30, 7, 1, 'F2'); r(16, 29, 4, 2, 'F'); }
   else { r(4, 28, 8, 3, 'F'); r(4, 30, 8, 1, 'F2'); r(13, 29, 5, 2, 'F'); }
   // round body + belly
   r(6, 17 + b, 13, 11 - b, 'F'); r(7, 16 + b, 10, 1, 'F'); r(6, 27, 13, 1, 'F2'); r(11, 20 + b, 7, 6, 'F2');
   // head
   const hy = b;
   r(11, 8 + hy, 11, 10, 'F'); r(12, 7 + hy, 8, 1, 'F'); r(21, 12 + hy, 3, 5, 'F');
-  // long ears (flowing back while hopping)
-  if (air) {
-    r(11, 2 + hy, 3, 6, 'F'); r(10, 0 + hy, 3, 2, 'F'); r(12, 3 + hy, 1, 4, 'E'); r(11, 1 + hy, 1, 1, 'E');
-    r(15, 2 + hy, 3, 6, 'F'); r(14, 0 + hy, 3, 2, 'F'); r(16, 3 + hy, 1, 4, 'E'); r(15, 1 + hy, 1, 1, 'E');
-  }
-  else {
-    r(12, 0 + hy, 3, 8, 'F'); r(13, 1 + hy, 1, 6, 'E');
-    r(16, 1 + hy, 3, 7, 'F'); r(17, 2 + hy, 1, 5, 'E'); r(19, 0 + hy, 1, 2, 'F');
-  }
+  // long ears
+  r(12, 0 + hy, 3, 8, 'F'); r(13, 1 + hy, 1, 6, 'E');
+  r(16, 1 + hy, 3, 7, 'F'); r(17, 2 + hy, 1, 5, 'E'); r(19, 0 + hy, 1, 2, 'F');
   // chili-pepper hair clip
   r(14, 7 + hy, 4, 2, 'chili'); r(18, 8 + hy, 1, 1, 'chili'); r(15, 7 + hy, 2, 1, 'chili2'); r(13, 7 + hy, 1, 1, 'stem'); r(12, 6 + hy, 1, 1, 'stem');
   // nose, cheek, lips
   r(23, 12 + hy, 1, 1, 'E');
-  r(18, 14 + hy, 2, 1, 'blush');
+  r(18, 14 + hy, 2, 1, 'blush'); if (pose.blush > 0) { r(17, 14 + hy, 4, 2, 'blush'); }
   if (pose.kind === 'kiss') { r(22, 15 + hy, 2, 2, 'lip'); r(23, 15 + hy, 1, 1, 'chili2'); }
   else if (pose.mouth) { r(21, 15 + hy, 2, 2, 'lip'); }
   else { r(21, 15 + hy, 2, 1, 'lip'); }
