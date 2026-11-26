@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>LSUIElement</key>
+  <true/>
+  <key>NSHumanReadableCopyright</key>
+  <string>Timmy the fox</string>
+  <key>NSAppleEventsUsageDescription</key>
+  <string>Timmy checks Apple Mail for new emails and your dock for new messages, so he can tell you who wrote to you. Nothing leaves your Mac.</string>
+</dict>
+</plist>
