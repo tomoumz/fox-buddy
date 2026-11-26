@@ -2,14 +2,14 @@
 (async () => {
   // When opened in a plain browser (for previews) there is no Electron bridge.
   const api = window.fox || {
-    setIgnoreMouse() {}, focus() {}, blur() {}, contextMenu() {}, setState() {}, openApp() {}, openPrivacy() {}, openKeyPage() {}, installUpdate: async () => ({ ok: false }), setHeight() {}, getPrefs: async () => ({ sound: false, notifyEmail: true, notifyMessages: true, followPointer: true, openAtLogin: true, hasKey: false, version: '1.3.0', update: null }), prefAction: async () => true, setApiKey: async () => ({ ok: false, error: 'preview' }), hasApiKey: async () => false,
+    setIgnoreMouse() {}, focus() {}, blur() {}, contextMenu() {}, setState() {}, openApp() {}, openPrivacy() {}, openKeyPage() {}, installUpdate: async () => ({ ok: false }), setHeight() {}, getPrefs: async () => ({ sound: false, notifyEmail: true, notifyMessages: true, followPointer: true, twinsVisit: true, openAtLogin: true, hasKey: false, version: '1.3.0', update: null }), prefAction: async () => true, setApiKey: async () => ({ ok: false, error: 'preview' }), hasApiKey: async () => false,
     on(ch, fn) { (window.__foxHandlers = window.__foxHandlers || {})[ch] = fn; },
     getConfig: async () => ({ foxName: 'Timmy', yourName: '', wakeTime: '07:00', sleepTime: '22:30', breakReminderMinutes: 50, chattiness: 'normal', sound: false }),
     getState: async () => ({ hiScore: 0, lastMorning: '' }),
     chat: async () => ({ offline: true }),
     customFox: async () => null
   };
-  const { drawCarrotIcon, drawDad, drawHeart, drawBerry, drawBall, drawStarburst, outline } = window.Sprites;
+  const { drawKit, drawCarrotIcon, drawDad, drawHeart, drawBerry, drawBall, drawStarburst, outline } = window.Sprites;
   const L = window.Lines;
 
   let cfg = await api.getConfig();
@@ -34,6 +34,9 @@
   // sprite grids + 1px border on each side for the comic outline
   const DAD = { w: 46 * S, h: 36 * S };
   const dadOff = Object.assign(document.createElement('canvas'), { width: 46, height: 36 });
+  const KIT = { w: 24 * S, h: 25 * S };
+  const kitOff = Object.assign(document.createElement('canvas'), { width: 24, height: 25 });
+  const kitG = kitOff.getContext('2d', { willReadFrequently: true });
   const starOff = Object.assign(document.createElement('canvas'), { width: 48, height: 48 });
   const dadG = dadOff.getContext('2d', { willReadFrequently: true });
   const starG = starOff.getContext('2d');
@@ -51,7 +54,8 @@
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const youName = () => cfg.yourName || 'buddy';
-  const fill = (s, other) => s.replace(/\{you\}/g, youName()).replace(/\{fox\}/g, cfg.foxName)
+  const twinNames = () => (Array.isArray(cfg.twins) && cfg.twins.length === 2 ? cfg.twins : ['Sussie', 'Mimi']);
+  const fill = (s, other) => s.replace(/\{you\}/g, youName()).replace(/\{fox\}/g, cfg.foxName).replace(/\{a\}/g, twinNames()[0]).replace(/\{b\}/g, twinNames()[1]).replace(/\{other\}/g, other || twinNames()[1])
 ;
   const todayKey = () => new Date().toDateString();
   const hm = (s) => { const [h, m] = String(s).split(':').map(Number); return (h || 0) * 60 + (m || 0); };
@@ -105,12 +109,18 @@
   // ---------- speech bubbles ----------
   const bubbleRoot = document.getElementById('bubbles');
   const bubbles = new Map(); // speaker -> {el, text, shown, t, life}
-  function say(who, text, { buttons = null, life = null, kid = false, custom = null, menu = false, you = null, chat = false } = {}) {
-    const speaker = dad;
+  function say(who, text, { buttons = null, life = null, kid = false, custom = null, menu = false, you = null, chat = false, force = false } = {}) {
+    const speaker = who === 'dad' ? dad : kits[who];
+    if (!speaker) return null;
+    // a twin right next to a talking Timmy would cover his bubble: send a heart instead (or, if you clicked her, let her talk)
+    if (who !== 'dad' && bubbles.get('dad') && Math.abs(speaker.x - dad.x) < 230) {
+      if (!force || bubbles.get('dad').interactive || chatOpen) { burst('heart', speaker.x, GROUND - KIT.h, 1); return null; }
+      shut('dad');
+    }
     shut(who);
     const el = document.createElement('div');
-    el.className = 'bubble' + (menu || (buttons && buttons.length > 3) ? ' menu' : '');
-    const name = cfg.foxName;
+    el.className = 'bubble' + (menu || (buttons && buttons.length > 3) ? ' menu' : '') + (who === 'dad' ? '' : ' kid');
+    const name = who === 'dad' ? cfg.foxName : twinNames()[who];
     el.innerHTML = `<span class="who"></span><span class="txt"></span>`;
     el.querySelector('.who').textContent = name;
     if (you) { const y = document.createElement('span'); y.className = 'you'; y.textContent = 'You: ' + you; el.insertBefore(y, el.firstChild); }
@@ -121,13 +131,14 @@
     }
     if (custom) custom(el);
     bubbleRoot.appendChild(el);
-    const full = fill(text);
+    const full = fill(text, who === 'dad' ? undefined : twinNames()[1 - who]);
     const b = { chat, menu: !!custom, interactive: !!(buttons || custom), el, speaker, full, shown: 0, t: 0, life: life || (buttons || custom ? 60 : Math.max(4, full.length * 0.07 + 2.5)), kid: who !== 'dad' };
     bubbles.set(who, b);
     return b;
   }
   function shut(who) { const b = bubbles.get(who); if (b) { b.el.remove(); bubbles.delete(who); } }
-  function speakerTop() {
+  function speakerTop(s = dad) {
+    if (s !== dad) return GROUND - (KIT.h - 6) - s.jump;
     return GROUND - (dad.kind === 'sleep' ? 50 : DAD.h - 8) - dad.jump;
   }
   // Make Timmy's strip of screen taller while a big bubble is showing, so nothing gets cut off.
@@ -189,6 +200,7 @@
   }
   function goToSleep(kind = 'night') {
     endGame(true);
+    endVisit(true);
     scene++;
     mode = kind === 'nap' ? 'nap' : 'sleep';
     dad.coffee = 0; dad.carrotBites = null;
@@ -219,6 +231,7 @@
   const inR = (r, x, y) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
   function hitAt(x, y) {
     if (inR(dadRect(), x, y)) return 'dad';
+    for (const k of kits) if (inR({ x: k.x - KIT.w / 2 + 6, y: GROUND - KIT.h + 4 - k.jump, w: KIT.w - 12, h: KIT.h - 4 }, x, y)) return k;
     if (fetchBall && Math.hypot(fetchBall.x - x, fetchBall.y - y) < 22) return 'ball';
     return null;
   }
@@ -248,6 +261,7 @@
     const hit = hitAt(e.clientX, e.clientY);
     if (hit === 'dad' && mode !== 'berries' && mode !== 'chase') drag = { sx: e.clientX, moved: false };
     else if (hit === 'ball') throwBall();
+    else if (hit && hit.twin !== undefined) pokeKit(hit);
   });
   window.addEventListener('mouseup', (e) => {
     if (!drag) return;
@@ -297,6 +311,7 @@
     ];
     if (tab === 'timmy') return [
       ['🥕 Feed a carrot', () => eatCarrot(true)], ['☕ Coffee break', () => { shut('dad'); drinkCoffee(); }], ['✨ Do a trick', doTrick],
+      [`👧 Call ${twinNames()[0]} & ${twinNames()[1]}`, () => startVisit(true)],
       ['👋 Say hi', () => { dad.vy = 240; say('dad', pick(L.keyword[0][1])); }], ['🌙 Bedtime', () => { manualSleepUntil = Date.now() + 2 * 60 * 60 * 1000; goToSleep('night'); }]
     ];
     const p = await api.getPrefs();
@@ -306,7 +321,8 @@
       [`🔊 Sounds: ${onoff(p.sound)}`, toggle('toggle:sound')],
       [`📧 Email alerts: ${onoff(p.notifyEmail)}`, toggle('toggle:email')],
       [`💬 Message alerts: ${onoff(p.notifyMessages)}`, toggle('toggle:messages')],
-      [`🐾 Come to my pointer: ${onoff(p.followPointer)}`, toggle('toggle:follow')]
+      [`🐾 Come to my pointer: ${onoff(p.followPointer)}`, toggle('toggle:follow')],
+      [`👧 Twins visit: ${onoff(p.twinsVisit)}`, toggle('toggle:twins')]
     ];
     if (p.openAtLogin !== null) items.push([`🚀 Open at login: ${onoff(p.openAtLogin)}`, toggle('toggle:login')]);
     items.push(p.hasKey ? ['🔑 Change API key', openKeyPrompt] : ['🔑 Add API key', openKeyPrompt]);
@@ -399,6 +415,7 @@
     for (const act of res.actions || []) {
       if (act.type === 'game') setTimeout(() => startGame(act.game), 2500);
       if (act.type === 'eat') setTimeout(() => eatCarrot(true), 2500);
+      if (act.type === 'twins') setTimeout(() => startVisit(true), 2500);
     }
     if (res.text) dad.wag = 1;
     return res;
@@ -435,6 +452,66 @@
       say('dad', res.error, { buttons: [['Try again', openKeyPrompt], ['Later', () => shut('dad')]] });
     }
   });
+
+  // ---------- Sussie & Mimi come to play 👧👧 ----------
+  // Every now and then (or when you ask) Timmy's identical twin daughters run in
+  // from the edge of the screen, play with their dad for about a minute, then run home.
+  const kits = [];
+  let visit = null, visitT = rand(15, 35) * 60; // first visit 15-35 min after start
+  function makeKit(i, fromX) {
+    return { twin: i, acc: i === 0 ? 'headband' : 'tie', x: fromX + i * (fromX < 0 ? -50 : 50), jump: 0, vy: 0, dir: fromX < 0 ? 1 : -1,
+      kind: 'walk', target: null, speed: 150, frame: 0, ft: Math.random(), eyes: 'happy', blink: false, mouth: false, wag: 0, breath: false, next: rand(2, 4) };
+  }
+  function startVisit(asked) {
+    if (cfg.twinsVisit === false && !asked) return;
+    if (visit) return;
+    if (mode === 'sleep' || mode === 'nap') { if (!asked) return; wakeUp('quiet'); }
+    if (mode !== 'awake' || game) { if (asked) say('dad', "The girls can come right after this! 😄"); return; }
+    closeMenus(); scene++;
+    const fromLeft = dad.x > W / 2;
+    const edge = fromLeft ? -40 : W + 40;
+    kits.length = 0; kits.push(makeKit(0, edge), makeKit(1, edge));
+    kits.forEach((k, i) => { k.target = clamp(dad.x + (fromLeft ? -1 : 1) * (70 + i * 60), 30, W - 30); });
+    visit = { phase: 'arrive', t: 0, length: rand(55, 70), fromLeft };
+    sfx.fanfare();
+    later(() => say(0, pick(L.twins.arrive)), 600);
+    later(() => say(1, pick(L.twins.arrive)), 1300);
+    later(() => { dad.vy = 260; dad.eyes = 'happy'; burst('heart', dad.x, GROUND - DAD.h, 3); say('dad', pick(L.twins.dadHello)); }, 2200);
+  }
+  function endVisit(now) {
+    if (!visit) return;
+    if (now) { kits.length = 0; visit = null; shut(0); shut(1); return; }
+    visit.phase = 'leave'; visit.t = 0;
+    kits.forEach((k, i) => { k.speed = 150; k.target = visit.fromLeft ? -80 - i * 50 : W + 80 + i * 50; });
+    say(0, pick(L.twins.bye)); later(() => say(1, pick(L.twins.bye)), 700);
+    later(() => { dad.vy = 200; say('dad', pick(L.twins.dadBye)); }, 1600);
+  }
+  function pokeKit(k) {
+    k.vy = 240; sfx.jump(); k.eyes = 'happy';
+    burst('heart', k.x, GROUND - KIT.h, 1);
+    say(k.twin, pick(L.twins.poke), { force: true });
+  }
+  function updateVisit(dt) {
+    if (!visit) { visitT -= dt; if (visitT <= 0 && mode === 'awake' && !game && !bubbles.size && !chatOpen) { visitT = rand(45, 90) * 60; startVisit(false); } return; }
+    visit.t += dt;
+    if (visit.phase === 'arrive' && kits.every((k) => k.target === null)) { visit.phase = 'play'; visit.t = 0; }
+    if (visit.phase === 'play') {
+      for (const k of kits) {
+        k.next -= dt;
+        if (k.next > 0) continue;
+        k.next = rand(1.5, 4);
+        const sis = kits[1 - k.twin];
+        const r = Math.random();
+        if (r < 0.35) { k.target = clamp(sis.x + rand(-30, 30), 30, W - 30); k.speed = 160; }              // chase your sister
+        else if (r < 0.65) { k.target = clamp(dad.x + rand(-160, 160), 30, W - 30); k.speed = 130; }      // run around Daddy
+        else if (r < 0.85) { k.vy = rand(200, 280); k.eyes = 'happy'; }                                  // jump!
+        else if (!bubbles.get(k.twin)) say(k.twin, pick(L.twins.play));
+      }
+      if (Math.random() < dt * 0.12 && !bubbles.get('dad')) { dad.vy = 200; say('dad', pick(L.twins.dadPlay)); }
+      if (visit.t > visit.length) endVisit(false);
+    }
+    if (visit.phase === 'leave' && (visit.t > 8 || kits.every((k) => k.x < -60 || k.x > W + 60))) { kits.length = 0; visit = null; shut(0); shut(1); }
+  }
 
   // ---------- morning coffee ☕ ----------
   function drinkCoffee() {
@@ -555,7 +632,7 @@
   }
   function startGame(kind) {
     if (mode === 'sleep' || mode === 'nap') { wakeUp('quiet'); }
-    endGame(true); closeChat();
+    endGame(true); closeChat(); endVisit(true);
     scene++;
     if (mode === 'eating' || mode === 'coffee') mode = 'awake';
     dad.carrotBites = null; dad.coffee = 0;
@@ -714,6 +791,7 @@
     else if (cmd.startsWith('game:')) startGame(cmd.slice(5));
     else if (cmd.startsWith('ask:')) { if (mode === 'sleep' || mode === 'nap') wakeUp('quiet'); askFor(cmd.slice(4)); }
     else if (cmd === 'feed') eatCarrot(true);
+    else if (cmd === 'twins') startVisit(true);
     else if (cmd === 'coffee') { if (mode === 'sleep' || mode === 'nap') wakeUp('quiet'); drinkCoffee(); }
     else if (cmd === 'trick') doTrick();
     else if (cmd === 'menu') openMainMenu();
@@ -892,6 +970,7 @@
   }
   function render() {
     ctx.clearRect(0, 0, W, H);
+    kits.forEach((k) => { shadow(k.x, KIT.w * 0.6, k.jump); blit(kitOff, kitG, drawKit, k, k.x, KIT.w, KIT.h, k.jump, k.dir); });
     drawDadEntity();
     if (dad.hunger >= 70 && mode === 'awake' && dad.kind !== 'sleep') { // little "I'm hungry" carrot bobbing over his head
       const bob = Math.sin(performance.now() / 300) * 3;
@@ -926,7 +1005,7 @@
     const dt = Math.min(0.05, (t - last) / 1000); last = t;
     think(dt);
     updateGame(dt);
-    move(dad, dt);
+    move(dad, dt); updateVisit(dt); kits.forEach((k) => move(k, dt));
     if (dad.kind === 'sleep') { zT -= dt; if (zT <= 0) { zT = 1.6; burst('z', dad.x + 30, GROUND - 55, 1); } }
     for (const p of particles) { p.t += dt; p.x += p.vx * dt * (p.kind === 'z' ? 0.5 : 1); p.y += p.vy * dt; if (p.kind === 'z') p.x += Math.sin(p.t * 3) * 0.4; }
     for (let i = particles.length - 1; i >= 0; i--) if (particles[i].t > particles[i].life) particles.splice(i, 1);
@@ -944,5 +1023,5 @@
   requestAnimationFrame(frame);
 
   // preview hook (used only for screenshots in a browser)
-  window.__fox = { dad, say, openMainMenu, doTrick, eatCarrot, askForCarrot, drinkCoffee, openAskMenu, openPlayMenu, askFor, startGame, goToSleep, wakeUp, get mode() { return mode; }, get game() { return game; } };
+  window.__fox = { dad, kits, startVisit, endVisit, say, openMainMenu, doTrick, eatCarrot, askForCarrot, drinkCoffee, openAskMenu, openPlayMenu, askFor, startGame, goToSleep, wakeUp, get mode() { return mode; }, get game() { return game; } };
 })();

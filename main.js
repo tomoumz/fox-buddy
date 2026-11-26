@@ -28,6 +28,8 @@ const DEFAULT_CONFIG = {
   notifyEmail: true,     // tell me about new emails in Apple Mail (who + subject)
   notifyMessages: true,  // tell me when a chat app's dock badge goes up (Messages, WhatsApp, ...)
   followPointer: true,   // rest the pointer on Timmy's line and he walks over
+  twinsVisit: true,      // Sussie & Mimi drop by to play now and then
+  twins: ['Sussie', 'Mimi'],
   anthropicApiKey: '',
   model: 'claude-opus-5-5',
   customFoxImage: '' // optional: absolute path to a PNG of your own fox
@@ -53,7 +55,6 @@ function saveJSON(file, data) {
 function loadConfig() {
   if (!fs.existsSync(configPath())) saveJSON(configPath(), DEFAULT_CONFIG);
   config = loadJSON(configPath(), DEFAULT_CONFIG);
-  delete config.daughters; // from older versions
 }
 function saveConfig() { saveJSON(configPath(), config); send('config', config); }
 
@@ -108,6 +109,7 @@ function buildMenu() {
     { label: `💬 Talk to ${n}…`, click: () => send('command', 'chat') },
     { label: `🥕 Give ${n} a carrot`, click: () => send('command', 'feed') },
     { label: '☕ Coffee break', click: () => send('command', 'coffee') },
+    { label: `👧 Call ${(config.twins || ['Sussie', 'Mimi']).join(' & ')}`, click: () => send('command', 'twins') },
     { label: '✨ Do a trick', click: () => send('command', 'trick') },
     {
       label: '🎮 Play with me', submenu: [
@@ -224,6 +226,12 @@ const TOOLS = [
     input_schema: { type: 'object', properties: {}, required: [], additionalProperties: false }
   },
   {
+    name: 'call_twins',
+    description: 'Call your twin daughters to come over and play on screen for a minute. Use it when your friend wants to meet or see them, or asks you to call them.',
+    strict: true,
+    input_schema: { type: 'object', properties: {}, required: [], additionalProperties: false }
+  },
+  {
     name: 'set_my_name',
     description: 'Save the name your friend wants you to call them. Use it whenever they tell you their name or a nickname.',
     strict: true,
@@ -244,6 +252,7 @@ function systemPrompt() {
 Look: fire-red fur, white muzzle, a red bandana with a white knot, a cheeky confident cartoon-mascot grin.
 Personality: cocky in a lovable way but warm, playful, loyal and a bit goofy; can't start the morning without your coffee ☕, loves carrots (your favourite snack: you get hungry during the day and munch one, crunch crunch), berries, retro arcade games, high scores and naps.
 You are their friend, not an assistant: you hang out, joke around, notice how they're doing, cheer them on and gently remind them to drink water, stretch and sleep. When they ask for motivation, make it personal and concrete. When they ask for creative ideas, give one specific, fun idea they can start today. When they want to play, start a game with the start_game tool. When they tell you their name or what to call them, save it with set_my_name. When they share something else about themselves, save it with the remember tool and bring it up later like a real friend would.
+You are a proud, loving single dad to identical twin girls, ${(config.twins || ['Sussie', 'Mimi']).join(' and ')}: 3-year-old fox kits with big dark-brown eyes and brown curly hair (${(config.twins || ['Sussie'])[0]} wears a red headband, ${(config.twins || ['', 'Mimi'])[1]} a hair tie). They giggle, mix up words like toddlers and sometimes run over to play with you for a minute; call them with call_twins when your friend wants to see them. Mention them now and then, not in every message.
 Each message from your friend starts with a [note] saying the time, your friend's name and what you remember about them. Use it naturally; never mention the note.
 Style: you talk in a tiny speech bubble, so reply in 1-3 short sentences (under 50 words), casual and kind, with at most one emoji. Never use markdown, lists or headings. Stay in character as ${config.foxName}; if asked, you can say you are an AI fox friend made with Claude.`;
 }
@@ -287,7 +296,8 @@ function runTools(content, actions) {
   for (const block of content) {
     if (block.type !== 'tool_use') continue;
     let out = 'ok';
-    if (block.name === 'eat_carrot') { actions.push({ type: 'eat' }); out = 'You are munching the carrot now.'; }
+    if (block.name === 'call_twins') { actions.push({ type: 'twins' }); out = 'They are running over right now!'; }
+    else if (block.name === 'eat_carrot') { actions.push({ type: 'eat' }); out = 'You are munching the carrot now.'; }
     else if (block.name === 'start_game') { actions.push({ type: 'game', game: block.input.game }); out = `The ${block.input.game} game starts in a moment.`; }
     else if (block.name === 'set_my_name') { setName(block.input.name || ''); out = `Saved. Their name is ${config.yourName}.`; }
     else if (block.name === 'remember') {
@@ -535,7 +545,7 @@ ipcMain.on('set-height', (_e, h) => {
 });
 // Everything the ⚙️ Settings tab in Timmy's bubble can show and change.
 ipcMain.handle('get-prefs', () => ({
-  sound: !!config.sound, notifyEmail: !!config.notifyEmail, notifyMessages: !!config.notifyMessages, followPointer: config.followPointer !== false,
+  sound: !!config.sound, notifyEmail: !!config.notifyEmail, notifyMessages: !!config.notifyMessages, followPointer: config.followPointer !== false, twinsVisit: config.twinsVisit !== false,
   openAtLogin: app.isPackaged ? app.getLoginItemSettings().openAtLogin : null,
   hasKey: !!getApiKey(), version: FOX.version, update: pendingUpdate ? pendingUpdate.version : null
 }));
@@ -545,6 +555,7 @@ ipcMain.handle('pref-action', (_e, action) => {
     case 'toggle:email': config.notifyEmail = !config.notifyEmail; saveConfig(); break;
     case 'toggle:messages': config.notifyMessages = !config.notifyMessages; saveConfig(); if (config.notifyMessages) askAccessibility(); break;
     case 'toggle:login': if (app.isPackaged) app.setLoginItemSettings({ openAtLogin: !app.getLoginItemSettings().openAtLogin }); break;
+    case 'toggle:twins': config.twinsVisit = config.twinsVisit === false; saveConfig(); break;
     case 'toggle:follow': config.followPointer = config.followPointer === false; saveConfig(); break;
     case 'check-updates': checkForUpdates(true); break;
     case 'remove-key': removeApiKey(); break;

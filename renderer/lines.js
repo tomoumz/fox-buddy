@@ -66,6 +66,16 @@ window.Lines = {
     "Ooh, a visitor! What do you need?"
   ],
 
+  twins: {
+    arrive: ["Daddy!! 💕", "We're heeere!", "Suwpwise!", "Daddy Daddy Daddy!"],
+    dadHello: ["Look who's here! My girls! 💕 Say hi to {you}, girls!", "Uh oh... incoming twins! 😄", "My two favourite curly heads! 🦊💕"],
+    play: ["Can't catch me!", "Tag! You're it!", "Hehehe!", "Wook at me jump!", "Daddy, uppy uppy!", "I'm a fast fox!",
+      "{other} took my bwanket!", "One, two, fwee, ten!", "I wuv you Daddy!", "Again! Again!", "Is it snack time? Pwease?"],
+    poke: ["Hehehe!", "Dat tickles!", "Hi hi hi!", "I'm thwee!", "Wanna see my cuwls?", "I wuv you!", "Boop! 👉"],
+    dadPlay: ["Careful, girls!", "Who wants a piggyback?", "Okay okay, one more round!", "Slow down, you little rockets! 😅", "Daddy's tired... just kidding! 🦊"],
+    bye: ["Bye bye Daddy! 👋", "Bye {you}! 💕", "See you watew!", "Wuv you, bye!"],
+    dadBye: ["Bye girls! Love you! 💕", "Bye bye, my little curls! Be good! 🦊", "...and they're gone. The dock is so quiet now. 🥲"]
+  },
   coffeeStart: ["*yaaawn* ...coffee first. ☕", "Mmmh... coffee... then words. ☕", "Don't talk to me until I've had my coffee. ☕ (kidding, hi!)"],
   coffeeDone: ["AHH. Okay, NOW I'm awake!", "Coffee: done. Fox: activated! ⚡", "That's the stuff. Let's do this!"],
   hungry: [

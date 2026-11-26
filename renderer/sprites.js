@@ -166,6 +166,51 @@ function drawDadSleep(r, pose) {
   r(21, 24, 3, 5, 'B'); r(22, 29, 2, 1, 'W');
 }
 
+// ---------------- TWINS (content grid 22 x 23) ----------------
+// Sussie & Mimi: identical 3-year-old twins with big dark-brown eyes and a puff
+// of brown curls. The only difference: Sussie's red headband, Mimi's hair tie.
+const KIDPAL = { hair: '#4a220e', hair2: '#9a5526', hair3: '#c98a4b', eye: '#3a1a0a', red: '#8e0a1f', shine: '#ff6b81' };
+function kidPx(g) { const r0 = px(g); return (x, y, w, h, c) => r0(x, y + 3, w, h, KIDPAL[c] || c); }
+function ring(r, x, y, c, mid) { r(x, y, 3, 1, c); r(x, y + 2, 3, 1, c); r(x, y + 1, 1, 1, c); r(x + 2, y + 1, 1, 1, c); r(x + 1, y + 1, 1, 1, mid); }
+
+function drawKit(g, pose) {
+  const r = kidPx(g);
+  const f = pose.frame || 0;
+  const walking = pose.kind === 'walk';
+  const b = walking ? (f % 2) : (pose.breath ? 1 : 0);
+  const w = pose.wag || 0;
+  // tail
+  r(3, 11, 2, 2, 'O'); r(1, 9 + w, 3, 3, 'O'); r(0, 8 + w, 2, 2, 'C');
+  // legs
+  const l1 = walking ? f % 2 : 0, l2 = walking ? (f + 1) % 2 : 0;
+  r(5, 16, 2, 3 - l1, 'D'); r(5, 18 - l1, 2, 1, 'K');
+  r(10, 16, 2, 3 - l2, 'O'); r(10, 18 - l2, 2, 1, 'K');
+  // body
+  r(4, 11 + b, 9, 5, 'O'); r(5, 11 + b, 6, 1, 'L'); r(7, 14 + b, 5, 2, 'C');
+  // big toddler head with white muzzle like dad
+  const hy = b;
+  r(10, 4 + hy, 9, 8, 'O'); r(11, 9 + hy, 7, 3, 'C'); r(18, 7 + hy, 3, 3, 'C'); r(20, 7 + hy, 1, 1, 'K');
+  // high curly puff bun
+  ring(r, 11, -3 + hy, 'hair2', 'hair'); ring(r, 14, -4 + hy, 'hair', 'hair3'); ring(r, 16, -2 + hy, 'hair2', 'hair');
+  ring(r, 12, -1 + hy, 'hair', 'hair3'); ring(r, 10, 0 + hy, 'hair', 'hair2'); ring(r, 15, 0 + hy, 'hair2', 'hair');
+  r(13, 2 + hy, 3, 2, 'hair'); r(14, 3 + hy, 1, 1, 'hair3');
+  // ears poking out beside the bun
+  r(9, 2 + hy, 2, 3, 'O'); r(9, 3 + hy, 1, 1, 'C'); r(9, 2 + hy, 1, 1, 'K');
+  r(18, 2 + hy, 2, 3, 'O'); r(19, 3 + hy, 1, 1, 'C'); r(19, 2 + hy, 1, 1, 'K');
+  // ringlets by the cheek + a wisp on the forehead
+  r(10, 5 + hy, 1, 1, 'hair'); r(9, 6 + hy, 1, 2, 'hair2'); r(10, 8 + hy, 1, 1, 'hair'); r(16, 4 + hy, 1, 1, 'hair2');
+  // the only difference between them
+  if (pose.acc === 'headband') { r(11, 3 + hy, 7, 2, 'red'); r(12, 3 + hy, 2, 1, 'shine'); r(16, 3 + hy, 1, 1, 'shine'); }
+  else r(13, 2 + hy, 3, 1, 'K');
+  // big, soft dark-brown eyes
+  const eyes = pose.blink ? 'closed' : (pose.eyes || 'open');
+  if (eyes === 'open') { r(14, 5 + hy, 3, 3, 'W'); r(15, 5 + hy, 2, 3, 'eye'); r(15, 5 + hy, 1, 1, 'W'); r(14, 4 + hy, 3, 1, 'K'); r(17, 4 + hy, 1, 1, 'K'); }
+  else if (eyes === 'happy') { r(14, 6 + hy, 1, 1, 'K'); r(15, 5 + hy, 2, 1, 'K'); r(17, 6 + hy, 1, 1, 'K'); }
+  else { r(14, 6 + hy, 3, 1, 'K'); r(17, 5 + hy, 1, 1, 'K'); }
+  r(13, 10 + hy, 1, 1, 'P');
+  if (pose.mouth) r(17, 11 + hy, 3, 1, 'M'); else { r(17, 11 + hy, 2, 1, 'K'); r(16, 10 + hy, 1, 1, 'K'); }
+}
+
 // ---------- yellow starburst (the logo's background) ----------
 function drawStarburst(g, size, spin) {
   const c = size / 2, pts = 9;
@@ -199,4 +244,4 @@ function drawBall(g, x, y, s) {
   r(1, 0, 3, 5, '#c6f432'); r(0, 1, 5, 3, '#c6f432'); r(1, 1, 1, 3, '#ffffff'); r(3, 1, 1, 3, '#ffffff');
 }
 
-window.Sprites = { drawCarrotIcon, drawDad, drawHeart, drawBerry, drawBall, drawStarburst, outline, PAL };
+window.Sprites = { drawKit, drawCarrotIcon, drawDad, drawHeart, drawBerry, drawBall, drawStarburst, outline, PAL };
