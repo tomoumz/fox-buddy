@@ -16,6 +16,9 @@ contextBridge.exposeInMainWorld('fox', {
   hasApiKey: () => ipcRenderer.invoke('has-api-key'),
   openKeyPage: () => ipcRenderer.send('open-key-page'),
   installUpdate: () => ipcRenderer.invoke('install-update'),
+  setHeight: (h) => ipcRenderer.send('set-height', h),
+  getPrefs: () => ipcRenderer.invoke('get-prefs'),
+  prefAction: (a) => ipcRenderer.invoke('pref-action', a),
   on: (channel, fn) => {
     if (['command', 'power', 'config', 'notify', 'update'].includes(channel)) ipcRenderer.on(channel, (_e, data) => fn(data));
   }

@@ -27,6 +27,7 @@ const DEFAULT_CONFIG = {
   sound: true,
   notifyEmail: true,     // tell me about new emails in Apple Mail (who + subject)
   notifyMessages: true,  // tell me when a chat app's dock badge goes up (Messages, WhatsApp, ...)
+  followPointer: true,   // rest the pointer on Timmy's line and he walks over
   anthropicApiKey: '',
   model: 'claude-opus-5-5',
   customFoxImage: '' // optional: absolute path to a PNG of your own fox
@@ -57,10 +58,12 @@ function loadConfig() {
 function saveConfig() { saveJSON(configPath(), config); send('config', config); }
 
 // ---------- window ----------
+let stripHeight = STRIP_HEIGHT; // grows while a tall speech bubble is showing
 function placeWindow() {
   if (!win) return;
   const wa = screen.getPrimaryDisplay().workArea; // excludes the dock + menu bar on macOS
-  win.setBounds({ x: wa.x, y: wa.y + wa.height - STRIP_HEIGHT, width: wa.width, height: STRIP_HEIGHT });
+  const h = Math.min(stripHeight, wa.height);
+  win.setBounds({ x: wa.x, y: wa.y + wa.height - h, width: wa.width, height: h });
 }
 
 function createWindow() {
@@ -104,6 +107,8 @@ function buildMenu() {
     },
     { label: `💬 Talk to ${n}…`, click: () => send('command', 'chat') },
     { label: `🥕 Give ${n} a carrot`, click: () => send('command', 'feed') },
+    { label: '☕ Coffee break', click: () => send('command', 'coffee') },
+    { label: '✨ Do a trick', click: () => send('command', 'trick') },
     {
       label: '🎮 Play with me', submenu: [
         { label: '🍓 Berry Catch (arcade)', click: () => send('command', 'game:berries') },
@@ -467,6 +472,32 @@ ipcMain.on('set-state', (_e, patch) => {
   state = { ...state, ...allowed }; saveJSON(statePath(), state);
 });
 ipcMain.handle('install-update', () => installUpdate());
+ipcMain.on('set-height', (_e, h) => {
+  const next = Math.max(STRIP_HEIGHT, Math.min(720, Math.round(Number(h) || STRIP_HEIGHT)));
+  if (next !== stripHeight) { stripHeight = next; placeWindow(); }
+});
+// Everything the ⚙️ Settings tab in Timmy's bubble can show and change.
+ipcMain.handle('get-prefs', () => ({
+  sound: !!config.sound, notifyEmail: !!config.notifyEmail, notifyMessages: !!config.notifyMessages, followPointer: config.followPointer !== false,
+  openAtLogin: app.isPackaged ? app.getLoginItemSettings().openAtLogin : null,
+  hasKey: !!getApiKey(), version: FOX.version, update: pendingUpdate ? pendingUpdate.version : null
+}));
+ipcMain.handle('pref-action', (_e, action) => {
+  switch (action) {
+    case 'toggle:sound': config.sound = !config.sound; saveConfig(); break;
+    case 'toggle:email': config.notifyEmail = !config.notifyEmail; saveConfig(); break;
+    case 'toggle:messages': config.notifyMessages = !config.notifyMessages; saveConfig(); if (config.notifyMessages) askAccessibility(); break;
+    case 'toggle:login': if (app.isPackaged) app.setLoginItemSettings({ openAtLogin: !app.getLoginItemSettings().openAtLogin }); break;
+    case 'toggle:follow': config.followPointer = config.followPointer === false; saveConfig(); break;
+    case 'check-updates': checkForUpdates(true); break;
+    case 'remove-key': removeApiKey(); break;
+    case 'forget': state.memories = []; state.chatHistory = []; saveJSON(statePath(), state); send('command', 'forgot'); break;
+    case 'open-settings': shell.openPath(configPath()); break;
+    case 'quit': setTimeout(() => app.quit(), 1500); break;
+  }
+  rebuildMenus();
+  return true;
+});
 ipcMain.handle('set-api-key', (_e, key) => setApiKey(key));
 ipcMain.handle('has-api-key', () => !!getApiKey());
 ipcMain.on('open-key-page', () => shell.openExternal('https://console.anthropic.com/settings/keys'));

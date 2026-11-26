@@ -2,7 +2,7 @@
 (async () => {
   // When opened in a plain browser (for previews) there is no Electron bridge.
   const api = window.fox || {
-    setIgnoreMouse() {}, focus() {}, blur() {}, contextMenu() {}, setState() {}, openApp() {}, openPrivacy() {}, openKeyPage() {}, installUpdate: async () => ({ ok: false }), setApiKey: async () => ({ ok: false, error: 'preview' }), hasApiKey: async () => false,
+    setIgnoreMouse() {}, focus() {}, blur() {}, contextMenu() {}, setState() {}, openApp() {}, openPrivacy() {}, openKeyPage() {}, installUpdate: async () => ({ ok: false }), setHeight() {}, getPrefs: async () => ({ sound: false, notifyEmail: true, notifyMessages: true, followPointer: true, openAtLogin: true, hasKey: false, version: '1.3.0', update: null }), prefAction: async () => true, setApiKey: async () => ({ ok: false, error: 'preview' }), hasApiKey: async () => false,
     on(ch, fn) { (window.__foxHandlers = window.__foxHandlers || {})[ch] = fn; },
     getConfig: async () => ({ foxName: 'Timmy', yourName: '', wakeTime: '07:00', sleepTime: '22:30', breakReminderMinutes: 50, chattiness: 'normal', sound: false }),
     getState: async () => ({ hiScore: 0, lastMorning: '' }),
@@ -105,11 +105,11 @@
   // ---------- speech bubbles ----------
   const bubbleRoot = document.getElementById('bubbles');
   const bubbles = new Map(); // speaker -> {el, text, shown, t, life}
-  function say(who, text, { buttons = null, life = null, kid = false } = {}) {
+  function say(who, text, { buttons = null, life = null, kid = false, custom = null, menu = false } = {}) {
     const speaker = dad;
     shut(who);
     const el = document.createElement('div');
-    el.className = 'bubble' + (buttons && buttons.length > 3 ? ' menu' : '');
+    el.className = 'bubble' + (menu || (buttons && buttons.length > 3) ? ' menu' : '');
     const name = cfg.foxName;
     el.innerHTML = `<span class="who"></span><span class="txt"></span>`;
     el.querySelector('.who').textContent = name;
@@ -118,15 +118,29 @@
       buttons.forEach(([label, fn]) => { const b = document.createElement('button'); b.textContent = label; b.onclick = (e) => { e.stopPropagation(); fn(); }; row.appendChild(b); });
       el.appendChild(row);
     }
+    if (custom) custom(el);
     bubbleRoot.appendChild(el);
     const full = fill(text);
-    const b = { el, speaker, full, shown: 0, t: 0, life: life || (buttons ? 60 : Math.max(4, full.length * 0.07 + 2.5)), kid: who !== 'dad' };
+    const b = { interactive: !!(buttons || custom), el, speaker, full, shown: 0, t: 0, life: life || (buttons || custom ? 60 : Math.max(4, full.length * 0.07 + 2.5)), kid: who !== 'dad' };
     bubbles.set(who, b);
     return b;
   }
   function shut(who) { const b = bubbles.get(who); if (b) { b.el.remove(); bubbles.delete(who); } }
   function speakerTop() {
     return GROUND - (dad.kind === 'sleep' ? 50 : DAD.h - 8) - dad.jump;
+  }
+  // Make Timmy's strip of screen taller while a big bubble is showing, so nothing gets cut off.
+  let wantH = 0, heightT = 0;
+  function fitWindow(dt) {
+    heightT -= dt;
+    let need = 300;
+    for (const [, b] of bubbles) need = Math.max(need, H - b.el.getBoundingClientRect().top + 16);
+    if (chatOpen || keyOpen) need = Math.max(need, 340);
+    need = Math.ceil(need / 20) * 20;
+    if (need > H + 2 || (need < H - 2 && heightT <= 0)) {
+      if (need !== wantH) { wantH = need; api.setHeight(need); }
+      heightT = 1.5; // wait a moment before shrinking again
+    }
   }
   function updateBubbles(dt) {
     for (const [who, b] of bubbles) {
@@ -188,7 +202,8 @@
   }
 
   // ---------- interaction / click-through ----------
-  let mouse = { x: -1, y: -1, inside: false };
+  let mouse = { x: -1, y: -1, inside: false, stillSince: 0 };
+  let pointerGoal = null;
   let ignoring = true;
   let drag = null;
   const chatBox = document.getElementById('chat');
@@ -216,7 +231,8 @@
   }
 
   window.addEventListener('mousemove', (e) => {
-    mouse = { x: e.clientX, y: e.clientY, inside: true };
+    if (Math.abs(e.clientX - mouse.x) > 3 || Math.abs(e.clientY - mouse.y) > 3) mouse.stillSince = performance.now();
+    mouse = { x: e.clientX, y: e.clientY, inside: true, stillSince: mouse.stillSince };
     if (drag) {
       if (Math.abs(e.clientX - drag.sx) > 4) drag.moved = true;
       if (drag.moved) { dad.x = clamp(e.clientX, 40, W - 40); dad.jump = 18; dad.eyes = 'happy'; dad.target = null; }
@@ -266,30 +282,75 @@
     dad.vy = 200; sfx.jump(); burst('heart', dad.x, GROUND - DAD.h, 1);
     openAskMenu();
   }
-  function openAskMenu() {
-    scene++; // drop any queued small talk so it can't cover the menu
+  // Timmy's menu: everything he can do, in four tabs.
+  const TABS = [['play', '🎮 Play'], ['ask', '💬 Ask'], ['timmy', '🦊 Timmy'], ['settings', '⚙️ Settings']];
+  async function menuItems(tab) {
+    if (tab === 'play') return [
+      ['🍓 Berry Catch', () => startGame('berries')], ['🎾 Fetch', () => startGame('fetch')], ['✊ Rock Paper Scissors', () => startGame('rps')],
+      ['🏃 Chase', () => startGame('chase')], ['💃 Dance party', () => startGame('dance')]
+    ];
+    if (tab === 'ask') return [
+      ['💪 Motivate me', () => askFor('motivation')], ['💡 Creative idea', () => askFor('creative')], ['😂 Tell a joke', () => askFor('joke')],
+      ['🧘 Calm me down', () => askFor('calm')], ['🥰 Cheer me up', () => askFor('compliment')], ['💬 Let\'s talk', openChat]
+    ];
+    if (tab === 'timmy') return [
+      ['🥕 Feed a carrot', () => eatCarrot(true)], ['☕ Coffee break', () => { shut('dad'); drinkCoffee(); }], ['✨ Do a trick', doTrick],
+      ['👋 Say hi', () => { dad.vy = 240; say('dad', pick(L.keyword[0][1])); }], ['🌙 Bedtime', () => { manualSleepUntil = Date.now() + 2 * 60 * 60 * 1000; goToSleep('night'); }]
+    ];
+    const p = await api.getPrefs();
+    const onoff = (v) => (v ? 'ON ✅' : 'OFF');
+    const toggle = (action) => async () => { await api.prefAction(action); openMainMenu('settings'); };
+    const items = [
+      [`🔊 Sounds: ${onoff(p.sound)}`, toggle('toggle:sound')],
+      [`📧 Email alerts: ${onoff(p.notifyEmail)}`, toggle('toggle:email')],
+      [`💬 Message alerts: ${onoff(p.notifyMessages)}`, toggle('toggle:messages')],
+      [`🐾 Come to my pointer: ${onoff(p.followPointer)}`, toggle('toggle:follow')]
+    ];
+    if (p.openAtLogin !== null) items.push([`🚀 Open at login: ${onoff(p.openAtLogin)}`, toggle('toggle:login')]);
+    items.push(p.hasKey ? ['🔑 Change API key', openKeyPrompt] : ['🔑 Add API key', openKeyPrompt]);
+    if (p.hasKey) items.push(['🗝️ Remove API key', async () => { await api.prefAction('remove-key'); }]);
+    items.push(
+      [p.update ? `⬆️ Update to v${p.update}` : `⬆️ Check updates (v${p.version})`, async () => { shut('dad'); await api.prefAction('check-updates'); }],
+      ['🧽 Forget my memories', async () => { await api.prefAction('forget'); }],
+      ['📝 More settings', async () => { await api.prefAction('open-settings'); shut('dad'); }],
+      ['👋 Quit Timmy', async () => { say('dad', 'Bye bye! See you soon! 👋', { life: 3 }); await api.prefAction('quit'); }]
+    );
+    return items;
+  }
+  let menuTab = 'ask';
+  async function openMainMenu(tab) {
     if (mode === 'sleep' || mode === 'nap') wakeUp('quiet');
-    say('dad', pick(L.askMenu), { buttons: [
-      ['🎮 Play with me', openPlayMenu],
-      ['💪 Motivate me', () => askFor('motivation')],
-      ['💡 Creative idea', () => askFor('creative')],
-      ['😂 Tell a joke', () => askFor('joke')],
-      ['🧘 Calm me down', () => askFor('calm')],
-      ['🥰 Cheer me up', () => askFor('compliment')],
-      ['🥕 Feed Timmy', () => eatCarrot(true)],
-      ['💬 Let\'s talk', openChat]
-    ] });
+    scene++; // drop any queued small talk so it can't cover the menu
+    menuTab = tab || menuTab;
+    const items = await menuItems(menuTab);
+    say('dad', menuTab === 'play' ? L.games.playMenu : pick(L.askMenu), { menu: true, life: 90, custom: (el) => {
+      const tabs = document.createElement('div'); tabs.className = 'tabs';
+      for (const [id, label] of TABS) {
+        const t = document.createElement('button'); t.textContent = label; if (id === menuTab) t.className = 'on';
+        t.onclick = (e) => { e.stopPropagation(); openMainMenu(id); };
+        tabs.appendChild(t);
+      }
+      el.appendChild(tabs);
+      const grid = document.createElement('div'); grid.className = 'btns grid' + (menuTab === 'settings' ? ' two' : '');
+      for (const [label, fn] of items) {
+        const b = document.createElement('button'); b.textContent = label;
+        b.onclick = (e) => { e.stopPropagation(); fn(); };
+        grid.appendChild(b);
+      }
+      el.appendChild(grid);
+    } });
   }
-  function openPlayMenu() {
+  const openAskMenu = () => openMainMenu('ask');
+  const openPlayMenu = () => openMainMenu('play');
+  function doTrick() {
+    if (mode === 'sleep' || mode === 'nap') wakeUp('quiet');
     scene++;
-    say('dad', L.games.playMenu, { buttons: [
-      ['🍓 Berry Catch', () => startGame('berries')],
-      ['🎾 Fetch', () => startGame('fetch')],
-      ['✊ Rock Paper Scissors', () => startGame('rps')],
-      ['🏃 Chase', () => startGame('chase')],
-      ['💃 Dance', () => startGame('dance')]
-    ] });
+    dad.vy = 380; dad.star = 1.4; dad.dir *= -1; sfx.win();
+    setTimeout(() => { dad.dir *= -1; }, 300);
+    burst('text', dad.x, GROUND - DAD.h - 10, 1, 'TA-DA!'); burst('heart', dad.x, GROUND - DAD.h, 2);
+    say('dad', pick(['Backflip! ...okay, a front-hop. Still counts! ✨', 'Ta-da! The famous Timmy Twirl! 🌪️', 'Did you see that?! Ten out of ten! 🏆']));
   }
+
   // What to ask Claude for each button (when an API key is set); otherwise use the built-in lines.
   const ASK = {
     motivation: { pool: 'motivation', prompt: 'Give me a quick, personal motivational boost for right now. Use what you know about me.' },
@@ -617,6 +678,9 @@
     else if (cmd.startsWith('game:')) startGame(cmd.slice(5));
     else if (cmd.startsWith('ask:')) { if (mode === 'sleep' || mode === 'nap') wakeUp('quiet'); askFor(cmd.slice(4)); }
     else if (cmd === 'feed') eatCarrot(true);
+    else if (cmd === 'coffee') { if (mode === 'sleep' || mode === 'nap') wakeUp('quiet'); drinkCoffee(); }
+    else if (cmd === 'trick') doTrick();
+    else if (cmd === 'menu') openMainMenu();
     else if (cmd === 'api-key') openKeyPrompt();
     else if (cmd === 'key-removed') say('dad', 'Key removed. I\'ll use my built-in lines for now. 🦊');
     else if (cmd === 'forgot') say('dad', "Okay, fresh start! Hi, I'm Timmy. Nice to meet you... again. 🦊");
@@ -688,6 +752,22 @@
     if (dad.hunger >= 95 && !game) { eatCarrot(false); return; }
     if (dad.hunger >= 70 && !bubbles.size && !game && Date.now() - hungryAsked > 15 * 60 * 1000) askForCarrot();
 
+    // stay put while his menu (or any question) is open
+    const busy = [...bubbles.values()].some((b) => b.interactive);
+    // 🐾 rest your pointer on his line for a second and he trots over
+    if (cfg.followPointer !== false && !busy && mouse.inside && !drag && mouse.y > GROUND - DAD.h - 10 &&
+        performance.now() - mouse.stillSince > 900 && Math.abs(mouse.x - dad.x) > 45 && pointerGoal === null) {
+      pointerGoal = mouse.x;
+      dad.target = clamp(mouse.x - Math.sign(mouse.x - dad.x) * 42, 50, W - 50); dad.speed = 120;
+      thinkT = rand(8, 14);
+    }
+    if (pointerGoal !== null && dad.target === null) {
+      dad.dir = Math.sign(pointerGoal - dad.x) || dad.dir; dad.speed = 60;
+      dad.vy = 160; dad.eyes = 'happy'; setTimeout(() => { if (dad.eyes === 'happy') dad.eyes = 'open'; }, 900);
+      if (Math.random() < 0.3 && !bubbles.size) say('dad', pick(['Here I am! 🐾', 'You called? 🦊', '*sniff sniff* What did you find?', 'Reporting for duty!']), { life: 2.5 });
+      pointerGoal = null;
+    }
+    if (busy) { if (dad.kind === 'walk' && pointerGoal === null) dad.target = null; return; }
     // wandering
     thinkT -= dt;
     if (thinkT <= 0) {
@@ -815,6 +895,7 @@
     for (const p of particles) { p.t += dt; p.x += p.vx * dt * (p.kind === 'z' ? 0.5 : 1); p.y += p.vy * dt; if (p.kind === 'z') p.x += Math.sin(p.t * 3) * 0.4; }
     for (let i = particles.length - 1; i >= 0; i--) if (particles[i].t > particles[i].life) particles.splice(i, 1);
     updateBubbles(dt);
+    fitWindow(dt);
     render();
     requestAnimationFrame(frame);
   }
@@ -827,5 +908,5 @@
   requestAnimationFrame(frame);
 
   // preview hook (used only for screenshots in a browser)
-  window.__fox = { dad, say, eatCarrot, askForCarrot, drinkCoffee, openAskMenu, openPlayMenu, askFor, startGame, goToSleep, wakeUp, get mode() { return mode; }, get game() { return game; } };
+  window.__fox = { dad, say, openMainMenu, doTrick, eatCarrot, askForCarrot, drinkCoffee, openAskMenu, openPlayMenu, askFor, startGame, goToSleep, wakeUp, get mode() { return mode; }, get game() { return game; } };
 })();

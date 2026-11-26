@@ -5,9 +5,13 @@ Fire-red fur, a red bandana, and a cheeky grin.
 
 ## What he does
 
-- **Ask him for things.** Click Timmy and pick one:
-  🎮 Play with me · 💪 Motivate me · 💡 Creative idea · 😂 Tell a joke · 🧘 Calm me down · 🥰 Cheer me up · 💬 Let's talk.
-  Each answer has an **Another!** button. The same list is in the 🦊 menu-bar icon under **Ask Timmy…**.
+- **Click Timmy for his menu**, with everything he can do in four tabs:
+  - 🎮 **Play:** Berry Catch, Fetch, Rock Paper Scissors, Chase, Dance party
+  - 💬 **Ask:** Motivate me, Creative idea, Tell a joke, Calm me down, Cheer me up, Let's talk
+  - 🦊 **Timmy:** Feed a carrot, Coffee break, Do a trick, Say hi, Bedtime
+  - ⚙️ **Settings:** sounds, email and message alerts, come-to-my-pointer, open at login, API key, updates, forget my memories, quit
+  If a bubble needs more room, Timmy's strip grows taller for it, so nothing gets cut off.
+- **Walks to your pointer.** Rest your mouse pointer on Timmy's line for a second and he trots over to it. Switch it off in ⚙️ Settings.
 - **Talks with you like a friend.** Double-click him (or pick 💬 Let's talk) and type anything.
   With an Anthropic API key he answers in his own words and remembers things you tell him, like your name, your goals and what you love.
   He can also start a game when you ask, e.g. "let's play something". Without a key he still has lots of built-in pep talks, ideas and jokes.
