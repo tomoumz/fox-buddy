@@ -224,7 +224,7 @@ function drawBunny(g, pose) {
   // fluffy tail
   r(3, 20, 4, 4, 'F2'); r(2, 21, 1, 2, 'F2');
   // feet: tucked when hopping
-  if (air) { r(6, 26, 7, 3, 'F'); r(13, 27, 5, 2, 'F'); }
+  if (air) { r(3, 25, 6, 3, 'F'); r(0, 26, 4, 2, 'F'); r(0, 27, 4, 1, 'F2'); r(16, 26, 3, 4, 'F'); r(16, 29, 3, 1, 'F2'); } // back legs push, front paws reach
   else { r(4, 28, 8, 3, 'F'); r(4, 30, 8, 1, 'F2'); r(13, 29, 5, 2, 'F'); }
   // round body + belly
   r(6, 17 + b, 13, 11 - b, 'F'); r(7, 16 + b, 10, 1, 'F'); r(6, 27, 13, 1, 'F2'); r(11, 20 + b, 7, 6, 'F2');
@@ -232,7 +232,10 @@ function drawBunny(g, pose) {
   const hy = b;
   r(11, 8 + hy, 11, 10, 'F'); r(12, 7 + hy, 8, 1, 'F'); r(21, 12 + hy, 3, 5, 'F');
   // long ears (flowing back while hopping)
-  if (air) { r(5, 5 + hy, 8, 3, 'F'); r(6, 6 + hy, 6, 1, 'E'); r(4, 9 + hy, 8, 2, 'F'); r(5, 9 + hy, 5, 1, 'E'); }
+  if (air) {
+    r(11, 2 + hy, 3, 6, 'F'); r(10, 0 + hy, 3, 2, 'F'); r(12, 3 + hy, 1, 4, 'E'); r(11, 1 + hy, 1, 1, 'E');
+    r(15, 2 + hy, 3, 6, 'F'); r(14, 0 + hy, 3, 2, 'F'); r(16, 3 + hy, 1, 4, 'E'); r(15, 1 + hy, 1, 1, 'E');
+  }
   else {
     r(12, 0 + hy, 3, 8, 'F'); r(13, 1 + hy, 1, 6, 'E');
     r(16, 1 + hy, 3, 7, 'F'); r(17, 2 + hy, 1, 5, 'E'); r(19, 0 + hy, 1, 2, 'F');
@@ -250,7 +253,7 @@ function drawBunny(g, pose) {
   if (closed) { r(17, 12 + hy, 3, 1, 'eye'); r(20, 11 + hy, 1, 1, 'eye'); }
   else { r(17, 10 + hy, 3, 3, 'eye'); r(17, 10 + hy, 1, 1, 'W'); r(18, 12 + hy, 1, 1, 'W'); r(20, 9 + hy, 1, 1, 'eye'); r(17, 9 + hy, 3, 1, 'eye'); }
   // arms
-  if (pose.kind === 'hug') { r(17, 16 + hy, 5, 2, 'F'); r(21, 13 + hy, 2, 4, 'F'); r(8, 15 + hy, 2, 4, 'F'); r(6, 13 + hy, 3, 2, 'F'); }  // arms wide open
+  if (pose.kind === 'hug') { r(17, 17 + hy, 6, 2, 'F'); r(22, 14 + hy, 2, 4, 'F'); r(15, 18 + hy, 3, 2, 'F2'); r(14, 15 + hy, 2, 4, 'F2'); } // arms open for a hug
   else if (pose.kind === 'kiss') { r(18, 17 + hy, 3, 2, 'F'); r(21, 15 + hy, 2, 2, 'F'); }                                                     // hand to lips
   else { r(15, 19 + hy, 2, 5, 'F2'); }
 }
