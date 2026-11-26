@@ -14,6 +14,11 @@ const PAL = {
   T: '#ff7b8a',   // tongue
   B: '#8f0d05',   // bandana (deep red so it pops against his fur)
   Y: '#ffc408',   // starburst yellow
+  R: '#ff6a2a',   // carrot
+  R2: '#c43d0c',  // carrot ridges
+  G: '#3a9d23',   // carrot leaves
+  Cf: '#5b3416',  // coffee
+  Mg: '#2ec4b6',  // mug stripe
   Y2: '#ffe27a'
 };
 
@@ -106,6 +111,20 @@ function drawDad(g, pose) {
     r(29, 15 + hy, 1, 1, 'K'); r(30, 16 + hy, 6, 1, 'K'); // grin
     r(31, 15 + hy, 4, 1, 'W'); // teeth peeking
   }
+  // snack time: a carrot that gets shorter with every bite (carrotBites 0..3)
+  if (pose.carrotBites != null && pose.carrotBites < 4) {
+    // bitten end in his mouth, leafy top sticking out in front
+    const len = 8 - pose.carrotBites * 2, x0 = 41 - len;
+    r(x0, 15 + hy, len, 3, 'R'); r(x0, 16 + hy, 1, 1, 'R2');
+    if (len > 2) r(x0 + 2, 15 + hy, 1, 3, 'R2'); if (len > 5) r(x0 + 5, 15 + hy, 1, 3, 'R2');
+    r(41, 14 + hy, 1, 1, 'G'); r(42, 13 + hy, 1, 2, 'G'); r(42, 16 + hy, 2, 1, 'G'); r(43, 14 + hy, 1, 2, 'G');
+  }
+  // morning coffee mug: held low (coffee 1) or at his mouth for a sip (coffee 2)
+  if (pose.coffee) {
+    const my = pose.coffee === 2 ? 13 + hy : 18 + hy, mx = pose.coffee === 2 ? 34 : 32;
+    r(mx, my, 5, 6, 'W'); r(mx, my, 5, 1, 'Cf'); r(mx + 1, my + 3, 3, 1, 'Mg');
+    r(mx - 1, my + 1, 1, 3, 'W'); // handle
+  }
   // red bandana with white knot
   const sy = 17 + hy - (stretch ? 2 : 0);
   r(20, sy, 9, 3, 'B');
@@ -160,9 +179,14 @@ function drawBerry(g, x, y, s, gold) {
   const c1 = gold ? '#ffd23f' : '#e63946', c2 = gold ? '#fff3b0' : '#ff8a8a';
   r(1, 1, 4, 5, c1); r(0, 2, 6, 3, c1); r(1, 2, 1, 1, c2); r(2, 0, 2, 1, '#3a9d23'); r(3, -1, 1, 1, '#3a9d23');
 }
+function drawCarrotIcon(g, x, y, s) {
+  const r = (a, b, w, h, c) => { g.fillStyle = PAL[c]; g.fillRect(x + a * s, y + b * s, w * s, h * s); };
+  r(1, -3, 1, 3, 'G'); r(3, -3, 1, 3, 'G'); r(2, -4, 1, 4, 'G');
+  r(0, 0, 5, 2, 'R'); r(1, 2, 3, 2, 'R'); r(2, 4, 1, 2, 'R'); r(1, 1, 3, 1, 'R2');
+}
 function drawBall(g, x, y, s) {
   const r = (a, b, w, h, c) => { g.fillStyle = c; g.fillRect(x + a * s, y + b * s, w * s, h * s); };
   r(1, 0, 3, 5, '#c6f432'); r(0, 1, 5, 3, '#c6f432'); r(1, 1, 1, 3, '#ffffff'); r(3, 1, 1, 3, '#ffffff');
 }
 
-window.Sprites = { drawDad, drawHeart, drawBerry, drawBall, drawStarburst, outline, PAL };
+window.Sprites = { drawCarrotIcon, drawDad, drawHeart, drawBerry, drawBall, drawStarburst, outline, PAL };

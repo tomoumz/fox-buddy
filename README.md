@@ -15,6 +15,7 @@ Fire-red fur, a red bandana, and a cheeky grin.
   - **Apple Mail:** "📬 New email from Sara: 'Dinner on Friday?' Wanna check it?", with an **Open Mail** button.
   - **Messages, WhatsApp, Telegram, Slack, Signal, Discord, Teams, Messenger, Outlook, Spark:** "💬 2 new messages in WhatsApp!" macOS doesn't let other apps read your chats, so for these he can say which app but not who wrote.
   - He stays quiet when he's asleep at night or your laptop is locked.
+- **Has his own little routine.** Every morning he wakes up, sits down with a steaming mug of coffee ☕, takes three slurps and powers up. During the day he gets hungry: a carrot bobs over his head and he asks you for one. Feed him from his menu (🥕 Feed Timmy) or just tell him "here's a carrot". If you forget, he eats one from his secret bandana stash, crunch crunch.
 - **Plays with you.** 🍓 Berry Catch (arcade game with a high score), 🎾 Fetch, ✊ Rock Paper Scissors, 🏃 Chase (he chases your mouse pointer), 💃 Dance party.
 - **Wakes up and sleeps with you.** Good morning at 07:00, goodnight and a lullaby at 22:30. He naps when your laptop sleeps and says welcome back when you return.
 - **Looks after you.** Break and water reminders, plus little chats through the day.

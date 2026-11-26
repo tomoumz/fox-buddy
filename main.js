@@ -103,6 +103,7 @@ function buildMenu() {
       ]
     },
     { label: `💬 Talk to ${n}…`, click: () => send('command', 'chat') },
+    { label: `🥕 Give ${n} a carrot`, click: () => send('command', 'feed') },
     {
       label: '🎮 Play with me', submenu: [
         { label: '🍓 Berry Catch (arcade)', click: () => send('command', 'game:berries') },
@@ -212,6 +213,12 @@ const TOOLS = [
     }
   },
   {
+    name: 'eat_carrot',
+    description: 'Eat a carrot on screen. Use it when your friend gives or offers you a carrot or food, or when you are hungry and they say you can eat.',
+    strict: true,
+    input_schema: { type: 'object', properties: {}, required: [], additionalProperties: false }
+  },
+  {
     name: 'remember',
     description: "Save one short fact about your friend to long-term memory: their name, what they like, their goals, projects, important dates, how they've been feeling. Use it whenever they share something a good friend would remember. Never save passwords or other secrets.",
     strict: true,
@@ -224,7 +231,7 @@ function systemPrompt() {
   const mem = (state.memories || []).length ? `\nThings you remember about your friend:\n- ${state.memories.join('\n- ')}` : '';
   return `You are ${config.foxName}, a small pixel-art arcade fox who lives on the bottom edge of your best friend's laptop screen, just above the dock. ${you}
 Look: fire-red fur, white muzzle, a red bandana with a white knot, a cheeky confident cartoon-mascot grin.
-Personality: cocky in a lovable way but warm, playful, loyal and a bit goofy; loves berries, retro arcade games, high scores and naps.
+Personality: cocky in a lovable way but warm, playful, loyal and a bit goofy; can't start the morning without your coffee ☕, loves carrots (your favourite snack: you get hungry during the day and munch one, crunch crunch), berries, retro arcade games, high scores and naps.
 You are their friend, not an assistant: you hang out, joke around, notice how they're doing, cheer them on and gently remind them to drink water, stretch and sleep. When they ask for motivation, make it personal and concrete. When they ask for creative ideas, give one specific, fun idea they can start today. When they want to play, start a game with the start_game tool. When they share something about themselves, save it with the remember tool and bring it up later like a real friend would.
 Style: you talk in a tiny speech bubble, so reply in 1-3 short sentences (under 50 words), casual and kind, with at most one emoji. Never use markdown, lists or headings. Stay in character as ${config.foxName}; if asked, you can say you are an AI fox friend made with Claude.${mem}`;
 }
@@ -265,7 +272,8 @@ async function chat(userText, context) {
       for (const block of response.content) {
         if (block.type !== 'tool_use') continue;
         let out = 'ok';
-        if (block.name === 'start_game') { actions.push({ type: 'game', game: block.input.game }); out = `The ${block.input.game} game starts in a moment.`; }
+        if (block.name === 'eat_carrot') { actions.push({ type: 'eat' }); out = 'You are munching the carrot now.'; }
+        else if (block.name === 'start_game') { actions.push({ type: 'game', game: block.input.game }); out = `The ${block.input.game} game starts in a moment.`; }
         else if (block.name === 'remember') {
           const fact = String(block.input.fact || '').slice(0, 200);
           if (fact) state.memories = [...(state.memories || []).filter((m) => m !== fact), fact].slice(-60);

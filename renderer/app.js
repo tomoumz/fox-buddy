@@ -9,7 +9,7 @@
     chat: async () => ({ offline: true }),
     customFox: async () => null
   };
-  const { drawDad, drawHeart, drawBerry, drawBall, drawStarburst, outline } = window.Sprites;
+  const { drawCarrotIcon, drawDad, drawHeart, drawBerry, drawBall, drawStarburst, outline } = window.Sprites;
   const L = window.Lines;
 
   let cfg = await api.getConfig();
@@ -83,20 +83,23 @@
     hurt: () => tone(220, 0.25, { type: 'sawtooth', slide: 70, vol: 0.03 }),
     fanfare: () => [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone(f, 0.14, { when: i * 0.11 })),
     lullaby: () => [784, 659, 784, 659, 698, 587, 523].forEach((f, i) => tone(f, 0.35, { when: i * 0.38, type: 'triangle', vol: 0.05 })),
+    slurp: () => { tone(300, 0.25, { type: 'triangle', vol: 0.04, slide: 520 }); tone(520, 0.12, { type: 'triangle', vol: 0.03, when: 0.25, slide: 260 }); },
+    crunch: () => { tone(140, 0.05, { type: 'sawtooth', vol: 0.03 }); tone(95, 0.06, { type: 'sawtooth', vol: 0.03, when: 0.06 }); tone(180, 0.04, { type: 'square', vol: 0.02, when: 0.13 }); },
     win: () => [523, 659, 784, 1047, 1319, 1568].forEach((f, i) => tone(f, 0.1, { when: i * 0.07 })),
     dance: () => { const n = [523, 523, 784, 659, 698, 587, 659, 523]; for (let k = 0; k < 3; k++) n.forEach((f, i) => tone(f, 0.12, { when: k * 1.6 + i * 0.2 })); }
   };
 
   // ---------- Timmy ----------
-  const dad = { star: 0, x: W * 0.62, jump: 0, vy: 0, dir: -1, kind: 'stand', target: null, speed: 60, frame: 0, ft: 0, eyes: 'open',
+  const dad = { star: 0, hunger: 30, carrotBites: null, coffee: 0, x: W * 0.62, jump: 0, vy: 0, dir: -1, kind: 'stand', target: null, speed: 60, frame: 0, ft: 0, eyes: 'open',
     blink: false, mouth: false, wag: 0, breath: false, carrying: false, emote: 0 };
-  let mode = 'awake'; // awake | sleep | nap | berries | fetch | chase | dance
+  let mode = 'awake'; // awake | sleep | nap | coffee | eating | berries | fetch | chase | dance
+  let hungryAsked = 0;
   let manualSleepUntil = 0, stayUpUntil = 0, lateWarned = 0;
   let thinkT = 3, chatterT = 40, breakT = (cfg.breakReminderMinutes || 50) * 60;
   const particles = [];
 
   function burst(kind, x, y, n = 1, text) {
-    for (let k = 0; k < n; k++) particles.push({ kind, x: x + rand(-10, 10), y, vx: rand(-20, 20), vy: rand(-60, -30), life: kind === 'z' ? 3 : 1.6, t: 0, text });
+    for (let k = 0; k < n; k++) particles.push({ kind, x: x + rand(-10, 10), y, vx: rand(-20, 20), vy: kind === 'crumb' ? rand(20, 70) : rand(-60, -30), life: kind === 'z' ? 3 : 1.6, t: 0, text });
   }
 
   // ---------- speech bubbles ----------
@@ -153,9 +156,10 @@
     later(() => { if (mode === 'awake') { dad.kind = 'stand'; dad.eyes = 'open'; } }, 1600);
     dad.star = 1.4;
     if (kind === 'morning') {
+      dad.hunger = Math.max(dad.hunger, 68); // wakes up ready for breakfast
       st.lastMorning = todayKey(); api.setState({ lastMorning: st.lastMorning });
       sfx.fanfare();
-      later(() => say('dad', pick(L.morning)), 900);
+      later(() => drinkCoffee(), 1700);
     } else if (kind === 'back') {
       later(() => say('dad', pick(L.welcomeBack)), 700);
     } else if (kind === 'first') {
@@ -172,6 +176,7 @@
     endGame(true);
     scene++;
     mode = kind === 'nap' ? 'nap' : 'sleep';
+    dad.coffee = 0; dad.carrotBites = null;
     if (kind !== 'nap') {
       say('dad', pick(L.goodnight), { life: 6 });
       sfx.lullaby();
@@ -271,6 +276,7 @@
       ['😂 Tell a joke', () => askFor('joke')],
       ['🧘 Calm me down', () => askFor('calm')],
       ['🥰 Cheer me up', () => askFor('compliment')],
+      ['🥕 Feed Timmy', () => eatCarrot(true)],
       ['💬 Let\'s talk', openChat]
     ] });
   }
@@ -312,6 +318,7 @@
     if (!res || res.offline) return null;
     for (const act of res.actions || []) {
       if (act.type === 'game') setTimeout(() => startGame(act.game), 2500);
+      if (act.type === 'eat') setTimeout(() => eatCarrot(true), 2500);
     }
     if (res.text) dad.wag = 1;
     return res;
@@ -349,6 +356,60 @@
     }
   });
 
+  // ---------- morning coffee ☕ ----------
+  function drinkCoffee() {
+    if (mode !== 'awake') return;
+    mode = 'coffee'; dad.target = null; dad.kind = 'sit'; dad.coffee = 1; dad.eyes = 'closed';
+    say('dad', pick(L.coffeeStart), { life: 3 });
+    const steam = setInterval(() => { if (!dad.coffee) return clearInterval(steam); burst('steam', dad.x + dad.dir * (dad.coffee === 2 ? 38 : 32), GROUND - DAD.h + (dad.coffee === 2 ? 30 : 45), 1); }, 450);
+    const sip = (n) => {
+      dad.coffee = 2; dad.eyes = 'closed'; sfx.slurp();
+      burst('text', dad.x + dad.dir * 30, GROUND - DAD.h - 4, 1, 'SLURP');
+      later(() => { dad.coffee = 1; dad.eyes = n < 3 ? 'open' : 'happy'; }, 1100);
+    };
+    later(() => sip(1), 2200);
+    later(() => sip(2), 4400);
+    later(() => sip(3), 6600);
+    later(() => {
+      dad.coffee = 0; mode = 'awake'; dad.kind = 'stand'; dad.eyes = 'open';
+      dad.vy = 280; dad.star = 1.4; sfx.coin();
+      burst('text', dad.x, GROUND - DAD.h - 10, 1, '+100 AWAKE');
+      say('dad', pick(L.coffeeDone) + ' ' + pick(L.morning));
+    }, 8600);
+  }
+
+  // ---------- snack time 🥕 ----------
+  function eatCarrot(fromYou) {
+    if (mode === 'sleep' || mode === 'nap') wakeUp('quiet');
+    if (mode !== 'awake') { if (fromYou) say('dad', "Ooh, a carrot! I'll eat it right after this. 🥕"); return; }
+    scene++;
+    const sc = scene;
+    mode = 'eating'; dad.target = null; dad.kind = 'sit'; dad.carrotBites = 0;
+    say('dad', fromYou ? pick(L.carrotGift) : pick(L.carrotSelf), { life: 4 });
+    let bites = 0;
+    const iv = setInterval(() => {
+      if (scene !== sc || mode !== 'eating') { clearInterval(iv); dad.carrotBites = null; return; }
+      bites++;
+      dad.carrotBites = bites; dad.eyes = bites % 2 ? 'closed' : 'happy';
+      sfx.crunch();
+      burst('crumb', dad.x + dad.dir * 55, GROUND - DAD.h + 50, 4);
+      burst('text', dad.x + dad.dir * 30, GROUND - DAD.h - 4, 1, 'CRUNCH');
+      if (bites >= 4) {
+        clearInterval(iv);
+        dad.carrotBites = null; dad.hunger = 0; mode = 'awake'; dad.kind = 'stand'; dad.eyes = 'happy';
+        dad.vy = 240; dad.star = 1.2; sfx.coin();
+        burst('heart', dad.x, GROUND - DAD.h, 3);
+        say('dad', pick(L.fullTummy));
+        setTimeout(() => { if (dad.eyes === 'happy') dad.eyes = 'open'; }, 1500);
+      }
+    }, 1000);
+  }
+  function askForCarrot() {
+    hungryAsked = Date.now();
+    dad.kind = 'sit';
+    say('dad', pick(L.hungry), { life: 90, buttons: [['🥕 Give a carrot', () => eatCarrot(true)], ['Later', () => { shut('dad'); say('dad', 'Okay... *tummy rumbles quietly*', { life: 3 }); }]] });
+  }
+
   // ---------- chat ----------
   let chatOpen = false;
   function openChat() {
@@ -371,6 +432,7 @@
     const res = await talk(text);
     if (res && res.text) say('dad', res.text);
     else if (!res) {
+      if (/carrot|hungry|food|eat|snack/i.test(text)) return eatCarrot(true);
       if (/play|game|bored/i.test(text)) return openPlayMenu();
       if (/motivat|lazy|procrastinat|give up|can't do/i.test(text)) return askFor('motivation');
       if (/idea|creative|inspir/i.test(text)) return askFor('creative');
@@ -399,6 +461,8 @@
     if (mode === 'sleep' || mode === 'nap') { wakeUp('quiet'); }
     endGame(true); closeChat();
     scene++;
+    if (mode === 'eating' || mode === 'coffee') mode = 'awake';
+    dad.carrotBites = null; dad.coffee = 0;
     dad.kind = 'stand'; dad.eyes = 'open';
     if (kind === 'berries') {
       mode = 'berries';
@@ -552,6 +616,7 @@
     else if (cmd === 'sleep') { manualSleepUntil = Date.now() + 2 * 60 * 60 * 1000; goToSleep('night'); }
     else if (cmd.startsWith('game:')) startGame(cmd.slice(5));
     else if (cmd.startsWith('ask:')) { if (mode === 'sleep' || mode === 'nap') wakeUp('quiet'); askFor(cmd.slice(4)); }
+    else if (cmd === 'feed') eatCarrot(true);
     else if (cmd === 'api-key') openKeyPrompt();
     else if (cmd === 'key-removed') say('dad', 'Key removed. I\'ll use my built-in lines for now. 🦊');
     else if (cmd === 'forgot') say('dad', "Okay, fresh start! Hi, I'm Timmy. Nice to meet you... again. 🦊");
@@ -617,6 +682,11 @@
     if (!night) lateWarned = 0;
 
     if (mode !== 'awake') return;
+
+    // tummy: about 1 point every 2 minutes awake; hungry at 70
+    dad.hunger = Math.min(100, dad.hunger + dt / 120);
+    if (dad.hunger >= 95 && !game) { eatCarrot(false); return; }
+    if (dad.hunger >= 70 && !bubbles.size && !game && Date.now() - hungryAsked > 15 * 60 * 1000) askForCarrot();
 
     // wandering
     thinkT -= dt;
@@ -707,6 +777,12 @@
   function render() {
     ctx.clearRect(0, 0, W, H);
     drawDadEntity();
+    if (dad.hunger >= 70 && mode === 'awake' && dad.kind !== 'sleep') { // little "I'm hungry" carrot bobbing over his head
+      const bob = Math.sin(performance.now() / 300) * 3;
+      ctx.globalAlpha = 0.9;
+      drawCarrotIcon(ctx, Math.round(dad.x - dad.dir * 40 - 7), Math.round(GROUND - DAD.h + 8 + bob), 3);
+      ctx.globalAlpha = 1;
+    }
     if (fetchBall) drawBall(ctx, Math.round(fetchBall.x - 7), Math.round(fetchBall.y - 7), 3);
     if (game && game.kind === 'berries') {
       for (const it of game.items) {
@@ -720,6 +796,8 @@
       ctx.globalAlpha = Math.max(0, a);
       if (p.kind === 'heart') drawHeart(ctx, Math.round(p.x), Math.round(p.y), 2);
       else if (p.kind === 'z') { ctx.fillStyle = '#ffffff'; ctx.font = `bold ${12 + p.t * 6}px ui-monospace, Menlo, monospace`; ctx.strokeStyle = '#2b1b17'; ctx.lineWidth = 3; ctx.strokeText('Z', p.x, p.y); ctx.fillText('Z', p.x, p.y); }
+      else if (p.kind === 'steam') { ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.fillRect(Math.round(p.x + Math.sin(p.t * 6) * 3), Math.round(p.y), 4, 4); }
+      else if (p.kind === 'crumb') { ctx.fillStyle = Math.random() < 0.5 ? '#ff6a2a' : '#c43d0c'; ctx.fillRect(Math.round(p.x), Math.round(p.y), 5, 5); }
       else if (p.kind === 'note') { ctx.fillStyle = '#ffd23f'; ctx.font = 'bold 18px ui-monospace, Menlo, monospace'; ctx.strokeStyle = '#2b1b17'; ctx.lineWidth = 3; ctx.strokeText('♪', p.x, p.y); ctx.fillText('♪', p.x, p.y); }
       else if (p.kind === 'text') { ctx.font = 'bold 13px ui-monospace, Menlo, monospace'; ctx.strokeStyle = '#2b1b17'; ctx.lineWidth = 4; ctx.strokeText(p.text, p.x - 16, p.y); ctx.fillStyle = '#ffd23f'; ctx.fillText(p.text, p.x - 16, p.y); }
       ctx.globalAlpha = 1;
@@ -749,5 +827,5 @@
   requestAnimationFrame(frame);
 
   // preview hook (used only for screenshots in a browser)
-  window.__fox = { dad, say, openAskMenu, openPlayMenu, askFor, startGame, goToSleep, wakeUp, get mode() { return mode; }, get game() { return game; } };
+  window.__fox = { dad, say, eatCarrot, askForCarrot, drinkCoffee, openAskMenu, openPlayMenu, askFor, startGame, goToSleep, wakeUp, get mode() { return mode; }, get game() { return game; } };
 })();

@@ -66,6 +66,18 @@ window.Lines = {
     "Ooh, a visitor! What do you need?"
   ],
 
+  coffeeStart: ["*yaaawn* ...coffee first. ☕", "Mmmh... coffee... then words. ☕", "Don't talk to me until I've had my coffee. ☕ (kidding, hi!)"],
+  coffeeDone: ["AHH. Okay, NOW I'm awake!", "Coffee: done. Fox: activated! ⚡", "That's the stuff. Let's do this!"],
+  hungry: [
+    "*tummy rumbles* ...was that me? Can I have a carrot? 🥕",
+    "I'm SO hungry, {you}. Carrot please? 🥺",
+    "Snack o'clock! Got a carrot for me? 🥕",
+    "Breakfast? Lunch? Dinner? Any of those, as long as it's a carrot. 🥕"
+  ],
+  carrotGift: ["A CARROT! For me?! You're the best! 🥕", "Yesss, carrot time! Thank you, {you}! 🧡", "*sniff sniff* Is that... a fresh carrot?! 😍"],
+  carrotSelf: ["*pulls a carrot out of his bandana* Emergency snack! 🥕", "Okay, I'm starving. Carrot from my secret stash! 🥕"],
+  fullTummy: ["Mmm! Best carrot ever. Thanks, {you}! 🧡", "*happy crunchy noises* I'm full! Let's play!", "That hit the spot. +100 energy! ⚡", "Burp. ...excuse me. 😅 Delicious!"],
+
   // ----- things you can ask for -----
   motivation: [
     "You don't have to finish it today. You just have to start. One tiny step. Go!",
