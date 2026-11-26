@@ -121,7 +121,7 @@
     if (custom) custom(el);
     bubbleRoot.appendChild(el);
     const full = fill(text);
-    const b = { interactive: !!(buttons || custom), el, speaker, full, shown: 0, t: 0, life: life || (buttons || custom ? 60 : Math.max(4, full.length * 0.07 + 2.5)), kid: who !== 'dad' };
+    const b = { menu: !!custom, interactive: !!(buttons || custom), el, speaker, full, shown: 0, t: 0, life: life || (buttons || custom ? 60 : Math.max(4, full.length * 0.07 + 2.5)), kid: who !== 'dad' };
     bubbles.set(who, b);
     return b;
   }
@@ -279,6 +279,7 @@
   // One click on Timmy: he hops and asks what you'd like.
   function clickDad() {
     if (mode === 'sleep' || mode === 'nap' || mode === 'berries' || mode === 'chase') return pokeDad();
+    if (closeMenus()) return; // menu already open: clicking Timmy again closes it
     dad.vy = 200; sfx.jump(); burst('heart', dad.x, GROUND - DAD.h, 1);
     openAskMenu();
   }
@@ -323,6 +324,7 @@
     scene++; // drop any queued small talk so it can't cover the menu
     menuTab = tab || menuTab;
     const items = await menuItems(menuTab);
+    api.focus(); // so a click anywhere else closes the menu (see 'blur' below)
     say('dad', menuTab === 'play' ? L.games.playMenu : pick(L.askMenu), { menu: true, life: 90, custom: (el) => {
       const tabs = document.createElement('div'); tabs.className = 'tabs';
       for (const [id, label] of TABS) {
@@ -340,6 +342,22 @@
       el.appendChild(grid);
     } });
   }
+  // Close Timmy's menu and any question bubbles. Returns true if something was open.
+  function closeMenus() {
+    let closed = false;
+    for (const [who, b] of bubbles) if (b.interactive) { shut(who); closed = true; }
+    if (closed) refreshIgnore();
+    return closed;
+  }
+  // Clicking anywhere outside Timmy (another app, the desktop, an empty spot) takes focus
+  // away from his window: close the menu then. The API-key box stays open, because
+  // "Get a key" opens the browser and you come back to paste.
+  window.addEventListener('blur', () => {
+    if (keyOpen) return;
+    if (game && game.kind === 'berries') return;
+    if (chatOpen) closeChat();
+    closeMenus();
+  });
   const openAskMenu = () => openMainMenu('ask');
   const openPlayMenu = () => openMainMenu('play');
   function doTrick() {
@@ -585,6 +603,7 @@
     sfx.jump(); say('dad', pick(['Ooh ooh ooh!', 'I got it! I GOT IT!', 'Ball!!!']), { life: 2 });
   }
   window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !game && !chatOpen && !keyOpen) closeMenus();
     if (e.key === 'Escape' && game) endGame();
     if (game && game.kind === 'berries') {
       if (e.key === 'ArrowLeft') game.key = -1;

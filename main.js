@@ -462,7 +462,11 @@ ipcMain.on('set-ignore-mouse', (_e, ignore) => {
   if (ignore) win.setIgnoreMouseEvents(true, { forward: true });
   else win.setIgnoreMouseEvents(false);
 });
-ipcMain.on('focus-window', () => { if (win) win.focus(); });
+ipcMain.on('focus-window', () => {
+  if (!win) return;
+  if (IS_MAC) app.focus({ steal: true }); // Timmy lives in the menu bar, so make sure his window really gets focus
+  win.focus();
+});
 ipcMain.on('blur-window', () => { if (win) win.blur(); });
 ipcMain.handle('get-config', () => config);
 ipcMain.handle('get-state', () => ({ hiScore: state.hiScore, lastMorning: state.lastMorning }));
