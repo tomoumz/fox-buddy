@@ -1,6 +1,6 @@
 {
-  "version": "1.5.7",
-  "file": "fox-buddy-1.5.7.tar.gz",
-  "sha256": "993b75bdc782168c603da86385ffe32a16fca9902a90217735fd870ac80d125f",
-  "notes": "Fetch: the ball now flies away from where you hit it 🎾"
+  "version": "1.6.0",
+  "file": "fox-buddy-1.6.0.tar.gz",
+  "sha256": "61da9e962cdefa2280616fa995371e322b2f7236600a80b3f0084337da922894",
+  "notes": "I got WINGS! 🪽 Ask me to fly around your screen, I'll even hop over your desktop icons!"
 }

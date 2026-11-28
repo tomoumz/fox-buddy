@@ -18,6 +18,7 @@ const PAL = {
   R2: '#c43d0c',  // carrot ridges
   G: '#3a9d23',   // carrot leaves
   Cf: '#5b3416',  // coffee
+  Wg: '#c9dcf5',  // wing feather shading
   Mg: '#2ec4b6',  // mug stripe
   Y2: '#ffe27a'
 };
@@ -47,6 +48,7 @@ function drawDad(g, pose) {
   if (pose.kind === 'sleep') return drawDadSleep(r, pose);
 
   const walking = pose.kind === 'walk';
+  const flying = pose.kind === 'fly'; // legs tucked up in the air
   const stretch = pose.kind === 'stretch';
   const sit = pose.kind === 'sit';
   const b = walking ? (f % 2) : (pose.breath ? 1 : 0);
@@ -78,7 +80,7 @@ function drawDad(g, pose) {
   legs.forEach(([x, phase], i) => {
     const l = lift(phase);
     const fx = stretch && i >= 2 ? x + 2 : x;
-    const h = 6 - l;
+    const h = 6 - l - (flying ? 2 : 0);
     r(fx, 26, 3, h, i < 2 ? 'D' : 'O');
     r(fx, 26 + h - 2, 3, 2, 'K');
   });
@@ -134,6 +136,17 @@ function drawDad(g, pose) {
     const my = pose.coffee === 2 ? 13 + hy : 18 + hy, mx = pose.coffee === 2 ? 34 : 32;
     r(mx, my, 5, 6, 'W'); r(mx, my, 5, 1, 'Cf'); r(mx + 1, my + 3, 3, 1, 'Mg');
     r(mx - 1, my + 1, 1, 3, 'W'); // handle
+  }
+  // 🪽 wings on his back, flapping between up (flap 0) and down (flap 1)
+  if (pose.wings) {
+    if (!pose.flap) {
+      r(13, 12, 9, 6, 'W'); r(11, 8, 9, 4, 'W'); r(9, 4, 8, 4, 'W'); r(7, 1, 7, 3, 'W');
+      r(10, 7, 7, 1, 'Wg'); r(12, 11, 8, 1, 'Wg'); r(8, 3, 5, 1, 'Wg');
+    } else {
+      // wing stretched straight back, above his back, so its shape stays clear
+      r(14, 12, 8, 5, 'W'); r(8, 11, 8, 4, 'W'); r(3, 10, 6, 3, 'W'); r(0, 9, 4, 2, 'W');
+      r(4, 12, 10, 1, 'Wg'); r(9, 14, 8, 1, 'Wg'); r(2, 11, 3, 1, 'Wg');
+    }
   }
   // red bandana with white knot
   const sy = 17 + hy - (stretch ? 2 : 0);

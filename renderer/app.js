@@ -2,7 +2,7 @@
 (async () => {
   // When opened in a plain browser (for previews) there is no Electron bridge.
   const api = window.fox || {
-    setIgnoreMouse() {}, focus() {}, blur() {}, contextMenu() {}, setState() {}, openApp() {}, openPrivacy() {}, openKeyPage() {}, installUpdate: async () => ({ ok: false }), setHeight() {}, getPrefs: async () => ({ sound: false, notifyEmail: true, notifyMessages: true, followPointer: true, twinsVisit: true, openAtLogin: true, hasKey: false, version: '1.3.0', update: null }), prefAction: async () => true, setApiKey: async () => ({ ok: false, error: 'preview' }), hasApiKey: async () => false,
+    setIgnoreMouse() {}, focus() {}, blur() {}, contextMenu() {}, setState() {}, openApp() {}, openPrivacy() {}, openKeyPage() {}, installUpdate: async () => ({ ok: false }), desktopIcons: async () => (window.__fakeIcons || []), setHeight() {}, getPrefs: async () => ({ sound: false, notifyEmail: true, notifyMessages: true, followPointer: true, twinsVisit: true, openAtLogin: true, hasKey: false, version: '1.3.0', update: null }), prefAction: async () => true, setApiKey: async () => ({ ok: false, error: 'preview' }), hasApiKey: async () => false,
     on(ch, fn) { (window.__foxHandlers = window.__foxHandlers || {})[ch] = fn; },
     getConfig: async () => ({ foxName: 'Timmy', yourName: '', wakeTime: '07:00', sleepTime: '22:30', breakReminderMinutes: 50, chattiness: 'normal', sound: false }),
     getState: async () => ({ hiScore: 0, lastMorning: '' }),
@@ -156,6 +156,7 @@
   function fitWindow(dt) {
     heightT -= dt;
     let need = 300;
+    if (flight) need = 10000; // the whole screen is his sky
     for (const [, b] of bubbles) need = Math.max(need, H - b.el.getBoundingClientRect().top + 16);
     if (chatOpen || keyOpen) need = Math.max(need, 340);
     need = Math.ceil(need / 20) * 20;
@@ -182,7 +183,9 @@
       // steady position: only move when the speaker really walks, not when he hops; whole pixels only
       const half = Math.ceil((b.el.offsetWidth || 200) / 2) + 6;
       const left = Math.round(clamp(b.speaker.x, half, W - half));
-      const bottom = Math.round(H - speakerTop(b.speaker, true) + 14);
+      let bottom = Math.round(H - speakerTop(b.speaker, !b.speaker.flying) + 14);
+      const hgt = b.el.offsetHeight || 60;
+      if (H - bottom - hgt < 4) bottom = Math.round(H - (GROUND - b.speaker.jump) - hgt - 12); // no room above (high up): show it under his feet
       if (left !== b.left) { b.left = left; b.el.style.left = left + 'px'; }
       if (bottom !== b.bottom) { b.bottom = bottom; b.el.style.bottom = bottom + 'px'; }
       if (b.t > b.life && !(b.chat && chatOpen)) { b.speaker.mouth = false; shut(who); }
@@ -220,6 +223,7 @@
   function goToSleep(kind = 'night') {
     endGame(true);
     endVisit(true);
+    endFlight();
     scene++;
     mode = kind === 'nap' ? 'nap' : 'sleep';
     dad.coffee = 0; dad.carrotBites = null;
@@ -280,7 +284,7 @@
   canvas.addEventListener('mousedown', (e) => {
     if (e.button !== 0) return;
     const hit = hitAt(e.clientX, e.clientY);
-    if (hit === 'dad' && mode !== 'berries' && mode !== 'chase') drag = { sx: e.clientX, moved: false };
+    if (hit === 'dad' && mode !== 'berries' && mode !== 'chase' && !flight) drag = { sx: e.clientX, moved: false };
     else if (hit === 'ball') throwBall(e.clientX);
     else if (hit && hit.twin !== undefined) pokeKit(hit);
     else if (hit === 'wife') { wife.blush = 1.5; sfx.kiss(); burst('heart', wife.x, GROUND - BUN.h, 3); say('wife', pick(L.wife.poke)); }
@@ -315,6 +319,7 @@
   }
   // One click on Timmy: he hops and asks what you'd like.
   function clickDad() {
+    if (flight) { burst('heart', dad.x, GROUND - DAD.h - dad.jump, 2); return say('dad', pick(L.fly.click), { life: 2.5 }); }
     if (mode === 'sleep' || mode === 'nap' || mode === 'berries' || mode === 'chase') return pokeDad();
     if (closeMenus()) return; // menu already open: clicking Timmy again closes it
     dad.vy = 200; sfx.jump(); burst('heart', dad.x, GROUND - DAD.h, 1);
@@ -332,7 +337,7 @@
       ['🧘 Calm me down', () => askFor('calm')], ['🥰 Cheer me up', () => askFor('compliment')], ['💬 Let\'s talk', openChat]
     ];
     if (tab === 'timmy') return [
-      ['🥕 Feed a carrot', () => eatCarrot(true)], ['☕ Coffee break', () => { shut('dad'); drinkCoffee(); }], ['✨ Do a trick', doTrick],
+      ['🥕 Feed a carrot', () => eatCarrot(true)], ['☕ Coffee break', () => { shut('dad'); drinkCoffee(); }], ['🪽 Fly around', () => startFlying()], ['✨ Do a trick', doTrick],
       [`👧 Call ${twinNames()[0]} & ${twinNames()[1]}`, () => startVisit(true)],
       [`💌 I miss ${wifeName()}`, () => startWifeVisit()],
       ['👋 Say hi', () => { dad.vy = 240; say('dad', pick(L.keyword[0][1])); }], ['🌙 Bedtime', () => { manualSleepUntil = Date.now() + 2 * 60 * 60 * 1000; goToSleep('night'); }]
@@ -439,6 +444,7 @@
       if (act.type === 'game') setTimeout(() => startGame(act.game), 2500);
       if (act.type === 'eat') setTimeout(() => eatCarrot(true), 2500);
       if (act.type === 'twins') setTimeout(() => startVisit(true), 2500);
+      if (act.type === 'fly') setTimeout(() => startFlying(), 2500);
       if (act.type === 'wife') setTimeout(() => startWifeVisit(), 2500);
     }
     if (res.text) dad.wag = 1;
@@ -535,6 +541,85 @@
       if (visit.t > visit.length) endVisit(false);
     }
     if (visit.phase === 'leave' && (visit.t > 8 || kits.every((k) => k.x < -60 || k.x > W + 60))) { kits.length = 0; visit = null; shut(0); shut(1); }
+  }
+
+  // ---------- flying 🪽 ----------
+  // Wings pop out, he flies all over the screen (hopping over your desktop icons), then lands.
+  let flight = null;
+  async function startFlying() {
+    if (flight) return;
+    if (mode === 'sleep' || mode === 'nap') wakeUp('quiet');
+    endGame(true); endVisit(true); closeMenus();
+    if (mode === 'eating' || mode === 'coffee') { dad.coffee = 0; dad.carrotBites = null; }
+    scene++;
+    mode = 'flying'; dad.target = null; dad.flying = true; dad.wings = true; dad.kind = 'fly'; dad.vy = 0;
+    flight = { t: 0, phase: 'takeoff', wp: null, vx: 0, vy: 0, legs: 6, lineT: 3, trail: 0, icons: [], hopped: 0 };
+    api.setHeight(10000);
+    sfx.fanfare(); dad.star = 1.4; burst('text', dad.x, GROUND - DAD.h - 10, 1, 'WINGS!');
+    say('dad', pick(L.fly.start), { life: 3 });
+    try {
+      const icons = await api.desktopIcons();
+      if (flight && Array.isArray(icons) && icons.length) {
+        // visit up to 4 icons, in a sweep across the screen
+        const pickIcons = icons.sort(() => Math.random() - 0.5).slice(0, 4).sort((a, b) => a.x - b.x);
+        if (dad.x > W / 2) pickIcons.reverse();
+        flight.icons = pickIcons;
+      }
+    } catch {}
+  }
+  function iconWaypoint(icon) {
+    // Finder gives each icon's centre; he lands on top of the picture, a bit above its name
+    return { x: clamp(icon.x, 60, W - 60), alt: clamp(GROUND - (icon.y - 38), 30, H - DAD.h - 60), icon };
+  }
+  function nextWaypoint() {
+    const f = flight;
+    if (f.icons.length && (f.hopped < 4) && Math.random() < 0.75) { f.wp = iconWaypoint(f.icons.shift()); f.legs--; return; }
+    const top = Math.max(90, H - DAD.h - 180);
+    f.wp = { x: rand(80, W - 80), alt: rand(Math.min(120, top), top) };
+    f.legs--;
+  }
+  function updateFlight(dt) {
+    if (!flight) return;
+    const f = flight; f.t += dt;
+    dad.flap = Math.floor(f.t * (f.perch > 0 ? 2 : 8)) % 2;
+    dad.kind = 'fly';
+    if (f.phase === 'takeoff') { if (f.t < 0.8) return; f.phase = 'fly'; nextWaypoint(); }
+    if (f.perch > 0) { f.perch -= dt; if (f.perch <= 0) { f.vy = 260; nextWaypoint(); } return; } // standing on an icon for a moment
+    const dx = f.wp.x - dad.x, dy = f.wp.alt - dad.jump, d = Math.hypot(dx, dy) || 1;
+    const sp = f.phase === 'land' ? 170 : f.wp.icon ? 240 : 220;
+    const k = Math.min(1, dt * 2.6);
+    f.vx += (dx / d * sp - f.vx) * k; f.vy += (dy / d * sp - f.vy) * k;
+    dad.x = clamp(dad.x + f.vx * dt, 40, W - 40);
+    dad.jump = clamp(dad.jump + f.vy * dt, 0, Math.max(0, H - DAD.h - 40));
+    if (Math.abs(f.vx) > 20) dad.dir = Math.sign(f.vx);
+    f.trail -= dt;
+    if (f.trail <= 0) { f.trail = 0.16; particles.push({ kind: 'cloud', x: dad.x - dad.dir * 60, y: GROUND - dad.jump - 45, vx: -dad.dir * 12, vy: 4, life: 1.1, t: 0 }); }
+    if (d < 26) {
+      if (f.phase === 'land') return landFlight();
+      if (f.wp.icon) { // BOING: a little hop on top of the icon
+        f.hopped++; f.perch = 0.7; f.vx = 0; f.vy = 0; sfx.jump(); dad.star = 0.8;
+        burst('text', dad.x, GROUND - dad.jump - DAD.h - 6, 1, 'BOING!');
+        if (!bubbles.get('dad') || Math.random() < 0.6) say('dad', pick(L.fly.icon).replace('{icon}', f.wp.icon.name), { life: 2.8 });
+        return;
+      }
+      if (f.legs <= 0) {
+        f.phase = 'land'; f.wp = { x: clamp(dad.x + rand(-250, 250), 80, W - 80), alt: 0 };
+        say('dad', pick(L.fly.landing), { life: 3 });
+      } else nextWaypoint();
+    }
+    f.lineT -= dt;
+    if (f.lineT <= 0 && f.phase === 'fly' && !bubbles.get('dad')) { f.lineT = rand(5, 8); say('dad', pick(L.fly.view), { life: 3.5 }); }
+  }
+  function landFlight() {
+    flight = null; dad.flying = false; dad.wings = false; dad.jump = 0; dad.vy = 0; dad.kind = 'stand';
+    mode = 'awake'; sfx.coin(); dad.star = 1.2;
+    burst('text', dad.x, GROUND - DAD.h - 10, 1, 'TOUCHDOWN!');
+    say('dad', pick(L.fly.done));
+  }
+  function endFlight() { // interrupted (game, bedtime...): wings away, gravity brings him down gently
+    if (!flight) return;
+    flight = null; dad.flying = false; dad.wings = false; dad.kind = 'stand'; dad.vy = 0;
+    if (mode === 'flying') mode = 'awake';
   }
 
   // ---------- Chili Pepper visits 🐰💕 ----------
@@ -675,6 +760,7 @@
     if (res && res.text) say('dad', res.text, { you: text, chat: true });
     else if (!res) {
       if (/miss (my )?(wife|her)|chili/i.test(text)) return startWifeVisit();
+      if (/\bfly|wings/i.test(text)) return startFlying();
       if (/carrot|hungry|food|eat|snack/i.test(text)) return eatCarrot(true);
       if (/play|game|bored/i.test(text)) return openPlayMenu();
       if (/motivat|lazy|procrastinat|give up|can't do/i.test(text)) return askFor('motivation');
@@ -702,7 +788,7 @@
   }
   function startGame(kind) {
     if (mode === 'sleep' || mode === 'nap') { wakeUp('quiet'); }
-    endGame(true); closeChat(); endVisit(true);
+    endGame(true); closeChat(); endVisit(true); endFlight();
     scene++;
     if (mode === 'eating' || mode === 'coffee') mode = 'awake';
     dad.carrotBites = null; dad.coffee = 0;
@@ -867,6 +953,7 @@
     else if (cmd.startsWith('ask:')) { if (mode === 'sleep' || mode === 'nap') wakeUp('quiet'); askFor(cmd.slice(4)); }
     else if (cmd === 'feed') eatCarrot(true);
     else if (cmd === 'twins') startVisit(true);
+    else if (cmd === 'fly') startFlying();
     else if (cmd === 'wife') startWifeVisit();
     else if (cmd === 'coffee') { if (mode === 'sleep' || mode === 'nap') wakeUp('quiet'); drinkCoffee(); }
     else if (cmd === 'trick') doTrick();
@@ -996,7 +1083,7 @@
       else { e.dir = Math.sign(dx); e.x += e.dir * Math.min(Math.abs(dx), e.speed * dt); e.kind = 'walk'; }
     } else if (e.kind === 'walk' && !(game && game.kind === 'berries' && e === dad)) e.kind = 'stand';
     // jump physics
-    if (e.vy || e.jump > 0) { e.jump += e.vy * dt; e.vy -= 900 * dt; if (e.jump <= 0) { e.jump = 0; e.vy = 0; } }
+    if (!e.flying && (e.vy || e.jump > 0)) { e.jump += e.vy * dt; e.vy -= 900 * dt; if (e.jump <= 0) { e.jump = 0; e.vy = 0; } }
     if (e === dad) {
       if (dad.star > 0) dad.star -= dt;
     }
@@ -1081,6 +1168,7 @@
       if (p.kind === 'heart') drawHeart(ctx, Math.round(p.x), Math.round(p.y), 2);
       else if (p.kind === 'z') { ctx.fillStyle = '#ffffff'; ctx.font = `bold ${12 + p.t * 6}px ui-monospace, Menlo, monospace`; ctx.strokeStyle = '#2b1b17'; ctx.lineWidth = 3; ctx.strokeText('Z', p.x, p.y); ctx.fillText('Z', p.x, p.y); }
       else if (p.kind === 'lips') { ctx.globalAlpha = Math.min(1, 2.2 * (1 - p.t / p.life)); const sc = 3 + Math.floor(p.t * 3); drawLips(ctx, Math.round(p.x - 5 * sc), Math.round(p.y - 3 * sc), Math.round(sc)); }
+      else if (p.kind === 'cloud') { ctx.fillStyle = 'rgba(255,255,255,0.85)'; const x = Math.round(p.x), y = Math.round(p.y); ctx.fillRect(x, y, 12, 6); ctx.fillRect(x + 3, y - 3, 7, 3); ctx.fillRect(x - 3, y + 2, 4, 3); }
       else if (p.kind === 'steam') { ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.fillRect(Math.round(p.x + Math.sin(p.t * 6) * 3), Math.round(p.y), 4, 4); }
       else if (p.kind === 'crumb') { ctx.fillStyle = Math.random() < 0.5 ? '#ff6a2a' : '#c43d0c'; ctx.fillRect(Math.round(p.x), Math.round(p.y), 5, 5); }
       else if (p.kind === 'note') { ctx.fillStyle = '#ffd23f'; ctx.font = 'bold 18px ui-monospace, Menlo, monospace'; ctx.strokeStyle = '#2b1b17'; ctx.lineWidth = 3; ctx.strokeText('♪', p.x, p.y); ctx.fillText('♪', p.x, p.y); }
@@ -1098,6 +1186,7 @@
     move(dad, dt); updateVisit(dt); kits.forEach((k) => move(k, dt));
     if (wife) { const keep = wife.kind; move(wife, dt); if (keep === 'kiss' || keep === 'hug') wife.kind = keep; }
     updateWife(dt);
+    updateFlight(dt);
     if (dad.kind === 'sleep') { zT -= dt; if (zT <= 0) { zT = 1.6; burst('z', dad.x + 30, GROUND - 55, 1); } }
     for (const p of particles) { p.t += dt; p.x += p.vx * dt * (p.kind === 'z' ? 0.5 : 1); p.y += p.vy * dt; if (p.kind === 'z') p.x += Math.sin(p.t * 3) * 0.4; }
     for (let i = particles.length - 1; i >= 0; i--) if (particles[i].t > particles[i].life) particles.splice(i, 1);
@@ -1116,5 +1205,6 @@
 
   // preview hook (used only for screenshots in a browser)
   window.__foxBall = () => fetchBall; // for automated tests
-  window.__fox = { dad, kits, startWifeVisit, get wife() { return wife; }, startVisit, endVisit, say, openMainMenu, doTrick, eatCarrot, askForCarrot, drinkCoffee, openAskMenu, openPlayMenu, askFor, startGame, goToSleep, wakeUp, get mode() { return mode; }, get game() { return game; } };
+  window.__foxFlight = () => flight;
+  window.__fox = { startFlying, dad, kits, startWifeVisit, get wife() { return wife; }, startVisit, endVisit, say, openMainMenu, doTrick, eatCarrot, askForCarrot, drinkCoffee, openAskMenu, openPlayMenu, askFor, startGame, goToSleep, wakeUp, get mode() { return mode; }, get game() { return game; } };
 })();

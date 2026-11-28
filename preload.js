@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld('fox', {
   hasApiKey: () => ipcRenderer.invoke('has-api-key'),
   openKeyPage: () => ipcRenderer.send('open-key-page'),
   installUpdate: () => ipcRenderer.invoke('install-update'),
+  desktopIcons: () => ipcRenderer.invoke('desktop-icons'),
   setHeight: (h) => ipcRenderer.send('set-height', h),
   getPrefs: () => ipcRenderer.invoke('get-prefs'),
   prefAction: (a) => ipcRenderer.invoke('pref-action', a),

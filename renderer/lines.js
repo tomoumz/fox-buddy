@@ -66,6 +66,15 @@ window.Lines = {
     "Ooh, a visitor! What do you need?"
   ],
 
+  fly: {
+    start: ["Wait... I have WINGS?! 🪽 Let's fly!", "Time to see the world! 🪽✨", "Up, up and awaaay! 🪽"],
+    view: ["Wheee! Look at that view! 🌤️", "I can see your whole screen from up here!", "Hi up there, menu bar! 👋", "Clouds taste like cotton candy. Probably. ☁️",
+      "Best. Day. Ever! ✨", "I feel like a superhero! 🦸", "Look at all your stuff! You've been busy!", "Wind in my ears! 🌬️"],
+    icon: ["Boing! 🦘 Hopping over “{icon}”!", "Boing! Nice icon, “{icon}”!", "*lands on “{icon}”* ...comfy!", "Boing boing! “{icon}” is bouncy!"],
+    landing: ["Okay, coming in for a landing! ✈️", "Prepare for touchdown! 🛬"],
+    done: ["Touchdown! What a view! 🌍", "That was AMAZING! Again sometime? 🪽", "*wobbly legs* Ground feels weird now 😅"],
+    click: ["Wheee! 😆", "Can't catch me up here!", "Wave to me! 👋", "I'm a bird! I'm a plane! I'm... a fox! 🦊"]
+  },
   wife: {
     dadHello: ["Ooh, look who's hopping over! 💕", "{you}, someone special is here! 🐰", "Is that... YES! It's {wife}! 💕"],
     arrive: ["Did someone miss me? 🥰", "Surprise, {you}! I missed you too! 💕", "Hi my love! 🐰💕"],

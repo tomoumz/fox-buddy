@@ -110,6 +110,7 @@ function buildMenu() {
     { label: `💬 Talk to ${n}…`, click: () => send('command', 'chat') },
     { label: `🥕 Give ${n} a carrot`, click: () => send('command', 'feed') },
     { label: '☕ Coffee break', click: () => send('command', 'coffee') },
+    { label: '🪽 Fly around the screen', click: () => send('command', 'fly') },
     { label: `💌 I miss ${config.wifeName || 'Chili Pepper'}`, click: () => send('command', 'wife') },
     { label: `👧 Call ${(config.twins || ['Sussie', 'Mimi']).join(' & ')}`, click: () => send('command', 'twins') },
     { label: '✨ Do a trick', click: () => send('command', 'trick') },
@@ -228,6 +229,12 @@ const TOOLS = [
     input_schema: { type: 'object', properties: {}, required: [], additionalProperties: false }
   },
   {
+    name: 'fly_around',
+    description: 'Grow wings and fly all over the screen for a while, enjoying the view and hopping over the desktop icons, then land again. Use it when your friend asks you to fly, or when you both feel like it.',
+    strict: true,
+    input_schema: { type: 'object', properties: {}, required: [], additionalProperties: false }
+  },
+  {
     name: 'call_wife',
     description: "Call your friend's wife to visit them on screen: she hops over, blows them a kiss, gives them a big hug and hops home. Use it when they say they miss their wife, or ask to see her.",
     strict: true,
@@ -305,7 +312,8 @@ function runTools(content, actions) {
   for (const block of content) {
     if (block.type !== 'tool_use') continue;
     let out = 'ok';
-    if (block.name === 'call_wife') { actions.push({ type: 'wife' }); out = 'She is hopping over right now with a kiss and a hug.'; }
+    if (block.name === 'fly_around') { actions.push({ type: 'fly' }); out = 'Your wings pop out and you take off!'; }
+    else if (block.name === 'call_wife') { actions.push({ type: 'wife' }); out = 'She is hopping over right now with a kiss and a hug.'; }
     else if (block.name === 'call_twins') { actions.push({ type: 'twins' }); out = 'They are running over right now!'; }
     else if (block.name === 'eat_carrot') { actions.push({ type: 'eat' }); out = 'You are munching the carrot now.'; }
     else if (block.name === 'start_game') { actions.push({ type: 'game', game: block.input.game }); out = `The ${block.input.game} game starts in a moment.`; }
@@ -572,6 +580,40 @@ function startUpdateChecks() {
   setInterval(() => checkForUpdates(false), 6 * 60 * 60 * 1000);
 }
 
+// ---------- desktop icons (for hopping over them while flying) ----------
+const FINDER_ICONS_SCRIPT = `
+tell application "Finder"
+  with timeout of 6 seconds
+    set out to ""
+    set allItems to items of desktop
+    set n to count of allItems
+    if n > 40 then set n to 40
+    repeat with i from 1 to n
+      try
+        set thing to item i of allItems
+        set p to desktop position of thing
+        set out to out & (name of thing) & tab & (item 1 of p) & tab & (item 2 of p) & linefeed
+      end try
+    end repeat
+    return out
+  end timeout
+end tell`;
+async function desktopIcons() {
+  if (!IS_MAC) return [];
+  const out = await osa(FINDER_ICONS_SCRIPT);
+  if (!out) return [];
+  const wa = screen.getPrimaryDisplay().workArea;
+  const icons = [];
+  for (const line of out.split('\n')) {
+    const [name, x, y] = line.split('\t');
+    const px = Number(x), py = Number(y);
+    if (!name || Number.isNaN(px) || Number.isNaN(py)) continue;
+    // Finder gives screen points; turn them into points inside Timmy's (full-height) window
+    icons.push({ name: name.slice(0, 40), x: px - wa.x, y: py - wa.y });
+  }
+  return icons.filter((i) => i.x > 0 && i.x < wa.width && i.y > 0 && i.y < wa.height);
+}
+
 // ---------- IPC ----------
 ipcMain.on('set-ignore-mouse', (_e, ignore) => {
   if (!win) return;
@@ -592,8 +634,9 @@ ipcMain.on('set-state', (_e, patch) => {
   state = { ...state, ...allowed }; saveJSON(statePath(), state);
 });
 ipcMain.handle('install-update', () => installUpdate());
+ipcMain.handle('desktop-icons', () => desktopIcons());
 ipcMain.on('set-height', (_e, h) => {
-  const next = Math.max(STRIP_HEIGHT, Math.min(720, Math.round(Number(h) || STRIP_HEIGHT)));
+  const next = Math.max(STRIP_HEIGHT, Math.min(5000, Math.round(Number(h) || STRIP_HEIGHT))); // placeWindow caps it at the screen height
   if (next !== stripHeight) { stripHeight = next; placeWindow(); }
 });
 // Everything the ⚙️ Settings tab in Timmy's bubble can show and change.
