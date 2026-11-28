@@ -249,10 +249,11 @@
   }
   const inR = (r, x, y) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
   function hitAt(x, y) {
+    // the ball comes first: it often sits right in front of Timmy's face
+    if (fetchBall && !dad.carrying && Math.hypot(fetchBall.x - x, fetchBall.y - y) < 28) return 'ball';
     if (inR(dadRect(), x, y)) return 'dad';
     if (wife && inR({ x: wife.x - BUN.w / 2 + 12, y: GROUND - BUN.h + 6 - wife.jump, w: BUN.w - 24, h: BUN.h - 6 }, x, y)) return 'wife';
     for (const k of kits) if (inR({ x: k.x - KIT.w / 2 + 6, y: GROUND - KIT.h + 4 - k.jump, w: KIT.w - 12, h: KIT.h - 4 }, x, y)) return k;
-    if (fetchBall && Math.hypot(fetchBall.x - x, fetchBall.y - y) < 22) return 'ball';
     return null;
   }
   function overUI(x, y) {
@@ -1109,5 +1110,6 @@
   requestAnimationFrame(frame);
 
   // preview hook (used only for screenshots in a browser)
+  window.__foxBall = () => fetchBall; // for automated tests
   window.__fox = { dad, kits, startWifeVisit, get wife() { return wife; }, startVisit, endVisit, say, openMainMenu, doTrick, eatCarrot, askForCarrot, drinkCoffee, openAskMenu, openPlayMenu, askFor, startGame, goToSleep, wakeUp, get mode() { return mode; }, get game() { return game; } };
 })();

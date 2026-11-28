@@ -1,6 +1,6 @@
 {
-  "version": "1.5.5",
-  "file": "fox-buddy-1.5.5.tar.gz",
-  "sha256": "4edc489056285ef41801155f7b92e4d4bfcde0b5204748cd9ac248cd6d8acea0",
-  "notes": "I check your email much more gently now, so Mail won't freeze."
+  "version": "1.5.6",
+  "file": "fox-buddy-1.5.6.tar.gz",
+  "sha256": "10386cd18ca37e215ecb16c08ce77a766473e2982a45d0755b430973837e638a",
+  "notes": "Fetch fix: you can always click the ball now, even right next to me 🎾"
 }
