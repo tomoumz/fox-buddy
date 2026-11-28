@@ -281,7 +281,7 @@
     if (e.button !== 0) return;
     const hit = hitAt(e.clientX, e.clientY);
     if (hit === 'dad' && mode !== 'berries' && mode !== 'chase') drag = { sx: e.clientX, moved: false };
-    else if (hit === 'ball') throwBall();
+    else if (hit === 'ball') throwBall(e.clientX);
     else if (hit && hit.twin !== undefined) pokeKit(hit);
     else if (hit === 'wife') { wife.blush = 1.5; sfx.kiss(); burst('heart', wife.x, GROUND - BUN.h, 3); say('wife', pick(L.wife.poke)); }
   });
@@ -759,11 +759,16 @@
       }])
     });
   }
-  function throwBall() {
+  function throwBall(clickX) {
     if (!fetchBall || dad.carrying || !game) return;
     game.throws++; game.idle = 0;
-    const dir = mouse.x < W / 2 ? 1 : -1;
-    fetchBall.vx = dir * rand(260, 520); fetchBall.vy = -rand(280, 380); fetchBall.rest = false;
+    // like hitting a real ball: it flies away from the side you clicked;
+    // a click right in the middle sends it away from Timmy so he has to chase it
+    const off = fetchBall.x - (clickX ?? mouse.x);
+    let dir = Math.abs(off) > 3 ? Math.sign(off) : Math.sign(fetchBall.x - dad.x) || 1;
+    if ((dir < 0 && fetchBall.x < 120) || (dir > 0 && fetchBall.x > W - 120)) dir = -dir; // no room that way: bounce it back
+    const power = 0.75 + Math.min(1, Math.abs(off) / 14) * 0.35; // a hit near the edge goes a bit farther
+    fetchBall.vx = dir * rand(300, 480) * power; fetchBall.vy = -rand(280, 380); fetchBall.rest = false;
     sfx.jump(); say('dad', pick(['Ooh ooh ooh!', 'I got it! I GOT IT!', 'Ball!!!']), { life: 2 });
   }
   window.addEventListener('keydown', (e) => {

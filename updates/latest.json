@@ -1,6 +1,6 @@
 {
-  "version": "1.5.6",
-  "file": "fox-buddy-1.5.6.tar.gz",
-  "sha256": "10386cd18ca37e215ecb16c08ce77a766473e2982a45d0755b430973837e638a",
-  "notes": "Fetch fix: you can always click the ball now, even right next to me 🎾"
+  "version": "1.5.7",
+  "file": "fox-buddy-1.5.7.tar.gz",
+  "sha256": "993b75bdc782168c603da86385ffe32a16fca9902a90217735fd870ac80d125f",
+  "notes": "Fetch: the ball now flies away from where you hit it 🎾"
 }
