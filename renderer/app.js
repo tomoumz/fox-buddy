@@ -9,7 +9,7 @@
     chat: async () => ({ offline: true }),
     customFox: async () => null
   };
-  const { drawBunny, drawLips, drawKit, drawCarrotIcon, drawDad, drawHeart, drawBerry, drawBall, drawStarburst, outline } = window.Sprites;
+  const { drawChair, drawBedBack, drawBedFront, drawBalloon, drawToy, drawBunny, drawLips, drawKit, drawCarrotIcon, drawDad, drawHeart, drawBerry, drawBall, drawStarburst, outline } = window.Sprites;
   const L = window.Lines;
 
   let cfg = await api.getConfig();
@@ -37,6 +37,9 @@
   const KIT = { w: 24 * S, h: 25 * S };
   const kitOff = Object.assign(document.createElement('canvas'), { width: 24, height: 25 });
   const kitG = kitOff.getContext('2d', { willReadFrequently: true });
+  const mk = (w, h) => { const c = Object.assign(document.createElement('canvas'), { width: w, height: h }); return [c, c.getContext('2d', { willReadFrequently: true })]; };
+  const CHAIR = { w: 36 * S, h: 28 * S }, BED = { w: 62 * S, h: 26 * S }, BAL = { w: 11 * S, h: 14 * S }, TOY = { w: 18 * S, h: 16 * S };
+  const [chairOff, chairG] = mk(36, 28), [bedOff, bedG] = mk(62, 26), [balOff, balG] = mk(11, 14), [toyOff, toyG] = mk(18, 16);
   const BUN = { w: 28 * S, h: 34 * S };
   const bunOff = Object.assign(document.createElement('canvas'), { width: 28, height: 34 });
   const bunG = bunOff.getContext('2d', { willReadFrequently: true });
@@ -93,6 +96,7 @@
     lullaby: () => [784, 659, 784, 659, 698, 587, 523].forEach((f, i) => tone(f, 0.35, { when: i * 0.38, type: 'triangle', vol: 0.05 })),
     slurp: () => { tone(300, 0.25, { type: 'triangle', vol: 0.04, slide: 520 }); tone(520, 0.12, { type: 'triangle', vol: 0.03, when: 0.25, slide: 260 }); },
     kiss: () => { tone(900, 0.06, { type: 'sine', vol: 0.05, slide: 1400 }); tone(1500, 0.12, { type: 'sine', vol: 0.04, when: 0.07, slide: 700 }); },
+    pop: () => { tone(900, 0.05, { type: 'square', vol: 0.05, slide: 120 }); tone(200, 0.08, { type: 'sawtooth', vol: 0.03, when: 0.03, slide: 60 }); },
     boing: () => tone(420, 0.12, { type: 'sine', vol: 0.03, slide: 820 }),
     crunch: () => { tone(140, 0.05, { type: 'sawtooth', vol: 0.03 }); tone(95, 0.06, { type: 'sawtooth', vol: 0.03, when: 0.06 }); tone(180, 0.04, { type: 'square', vol: 0.02, when: 0.13 }); },
     win: () => [523, 659, 784, 1047, 1319, 1568].forEach((f, i) => tone(f, 0.1, { when: i * 0.07 })),
@@ -100,7 +104,7 @@
   };
 
   // ---------- Timmy ----------
-  const dad = { star: 0, hunger: 30, carrotBites: null, coffee: 0, x: W * 0.62, jump: 0, vy: 0, dir: -1, kind: 'stand', target: null, speed: 60, frame: 0, ft: 0, eyes: 'open',
+  const dad = { lift: 0, star: 0, hunger: 30, carrotBites: null, coffee: 0, x: W * 0.62, jump: 0, vy: 0, dir: -1, kind: 'stand', target: null, speed: 60, frame: 0, ft: 0, eyes: 'open',
     blink: false, mouth: false, wag: 0, breath: false, carrying: false, emote: 0 };
   let mode = 'awake'; // awake | sleep | nap | coffee | eating | berries | fetch | chase | dance
   let hungryAsked = 0;
@@ -149,7 +153,7 @@
     const j = steady ? 0 : s.jump; // bubbles stay put while their speaker hops
     if (s === wife) return GROUND - (BUN.h - 6) - j;
     if (s !== dad) return GROUND - (KIT.h - 6) - j;
-    return GROUND - (dad.kind === 'sleep' ? 50 : DAD.h - 8) - j;
+    return GROUND - (dad.kind === 'sleep' ? 50 : DAD.h - 8) - j - (dad.lift || 0);
   }
   // Make Timmy's strip of screen taller while a big bubble is showing, so nothing gets cut off.
   let wantH = 0, heightT = 0;
@@ -254,10 +258,11 @@
   function dadRect() {
     if (customImg) { const w = DAD.h * customImg.width / customImg.height; return { x: dad.x - w / 2, y: GROUND - DAD.h - dad.jump, w, h: DAD.h }; }
     const h = dad.kind === 'sleep' ? 45 : DAD.h - 6;
-    return { x: dad.x - DAD.w / 2 + 6, y: GROUND - h - dad.jump, w: DAD.w - 12, h };
+    return { x: dad.x - DAD.w / 2 + 6, y: GROUND - h - dad.jump - dad.lift, w: DAD.w - 12, h };
   }
   const inR = (r, x, y) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
   function hitAt(x, y) {
+    if (balloonAt(x, y) >= 0) return 'balloon';
     // the ball comes first: it often sits right in front of Timmy's face
     if (fetchBall && !dad.carrying && Math.hypot(fetchBall.x - x, fetchBall.y - y) < 28) return 'ball';
     if (inR(dadRect(), x, y)) return 'dad';
@@ -291,6 +296,7 @@
     const hit = hitAt(e.clientX, e.clientY);
     if (hit === 'dad' && mode !== 'berries' && mode !== 'chase' && !flight) drag = { sx: e.clientX, moved: false };
     else if (hit === 'ball') throwBall(e.clientX);
+    else if (hit === 'balloon') { const i = balloonAt(e.clientX, e.clientY); if (i >= 0) popBalloon(i); }
     else if (hit && hit.twin !== undefined) pokeKit(hit);
     else if (hit === 'wife') { wife.blush = 1.5; sfx.kiss(); burst('heart', wife.x, GROUND - BUN.h, 3); say('wife', pick(L.wife.poke)); }
   });
@@ -506,6 +512,7 @@
     const fromLeft = dad.x > W / 2;
     const edge = fromLeft ? -40 : W + 40;
     kits.length = 0; kits.push(makeKit(0, edge), makeKit(1, edge));
+    setUpParty();
     kits.forEach((k, i) => { k.target = clamp(dad.x + (fromLeft ? -1 : 1) * (70 + i * 60), 30, W - 30); });
     visit = { phase: 'arrive', t: 0, length: rand(55, 70), fromLeft };
     sfx.fanfare();
@@ -515,7 +522,7 @@
   }
   function endVisit(now) {
     if (!visit) return;
-    if (now) { kits.length = 0; visit = null; shut(0); shut(1); return; }
+    if (now) { kits.length = 0; visit = null; shut(0); shut(1); endParty(true); return; }
     visit.phase = 'leave'; visit.t = 0;
     kits.forEach((k, i) => { k.speed = 150; k.target = visit.fromLeft ? -80 - i * 50 : W + 80 + i * 50; });
     say(0, pick(L.twins.bye)); later(() => say(1, pick(L.twins.bye)), 700);
@@ -545,7 +552,7 @@
       if (Math.random() < dt * 0.12 && !bubbles.get('dad')) { dad.vy = 200; say('dad', pick(L.twins.dadPlay)); }
       if (visit.t > visit.length) endVisit(false);
     }
-    if (visit.phase === 'leave' && (visit.t > 8 || kits.every((k) => k.x < -60 || k.x > W + 60))) { kits.length = 0; visit = null; shut(0); shut(1); }
+    if (visit.phase === 'leave' && (visit.t > 8 || kits.every((k) => k.x < -60 || k.x > W + 60))) { kits.length = 0; visit = null; shut(0); shut(1); endParty(false); }
   }
 
   // ---------- flying 🪽 ----------
@@ -670,6 +677,82 @@
       later(() => say('dad', pick(L.wife.dadAfter), { life: 4 }), 1500);
     } else if (w.phase === 'leave' && (w.x < -70 || w.x > W + 70 || w.t > 16)) { shut('wife'); wife = null; }
     if (w.phase === 'leave' || w.phase === 'arrive') w.kind = 'walk';
+  }
+
+  // ---------- furniture & party props 🪑🛏️🎈 ----------
+  // The chair appears while he has coffee, the bed while he sleeps; toys and balloons while the twins visit.
+  const furn = { chair: false, bed: false };
+  const props = []; // { type: 'toy', toy, x } | { type: 'balloon', color, x, alt, ph, tie, free, vy }
+  const BALLOON_COLORS = ['#ff4d6d', '#ffd23f', '#2ec4b6', '#9b5de5', '#ff8c1a', '#4cc9f0', '#80ed99'];
+  function poof(x, y) { for (let k = 0; k < 6; k++) particles.push({ kind: 'cloud', x: x + rand(-40, 40), y: y + rand(-20, 10), vx: rand(-20, 20), vy: rand(-25, -5), life: 0.9, t: 0 }); }
+  function updateFurniture(dt) {
+    const wantChair = mode === 'coffee', wantBed = dad.kind === 'sleep' && !flight;
+    if (wantChair !== furn.chair) { furn.chair = wantChair; poof(dad.x, GROUND - 40); if (wantChair) sfx.boing(); }
+    if (wantBed !== furn.bed) { furn.bed = wantBed; poof(dad.x, GROUND - 40); }
+    const target = furn.chair ? 30 : furn.bed ? 32 : 0;
+    dad.lift += (target - dad.lift) * Math.min(1, dt * 10);
+    if (Math.abs(target - dad.lift) < 0.5) dad.lift = target;
+    // balloons bob on their strings; released ones float away
+    for (let i = props.length - 1; i >= 0; i--) {
+      const p = props[i];
+      if (p.type !== 'balloon') continue;
+      p.ph += dt;
+      if (p.free) { p.alt += p.vy * dt; p.x += Math.sin(p.ph * 1.5) * 20 * dt; if (p.alt > H + 40) props.splice(i, 1); }
+    }
+  }
+  function setUpParty() {
+    props.length = 0;
+    const toys = ['blocks', 'bear', 'beachball', 'duck'];
+    const spots = [-260, -150, 150, 260].map((o) => clamp(dad.x + o + rand(-25, 25), 50, W - 50));
+    toys.forEach((toy, i) => props.push({ type: 'toy', toy, x: spots[i] }));
+    poof(dad.x, GROUND - 30);
+    // 2-3 balloons tied to the blocks and the bear
+    [0, 1].forEach((t) => {
+      const anchor = props[t];
+      const n = 2 + (t === 0 ? 1 : 0);
+      for (let k = 0; k < n; k++) props.push({ type: 'balloon', color: pick(BALLOON_COLORS), x: anchor.x + (k - (n - 1) / 2) * 30, alt: rand(120, 175), ph: rand(0, 6), tie: anchor, free: false, vy: 0 });
+    });
+  }
+  function endParty(now) {
+    for (let i = props.length - 1; i >= 0; i--) {
+      const p = props[i];
+      if (p.type === 'balloon' && !now) { p.free = true; p.vy = rand(60, 95); p.tie = null; }  // they float away into the sky
+      else { if (p.type === 'toy') poof(p.x, GROUND - 20); props.splice(i, 1); }
+    }
+  }
+  function balloonAt(x, y) {
+    for (let i = props.length - 1; i >= 0; i--) {
+      const p = props[i];
+      if (p.type !== 'balloon') continue;
+      const bx = p.x + Math.sin(p.ph * 1.3) * 4, by = GROUND - p.alt - BAL.h / 2 + Math.sin(p.ph * 2) * 4;
+      if (Math.hypot(bx - x, by - y) < 20) return i;
+    }
+    return -1;
+  }
+  function popBalloon(i) {
+    const p = props[i]; props.splice(i, 1);
+    const y = GROUND - p.alt - BAL.h / 2;
+    sfx.pop();
+    burst('text', p.x, y, 1, 'POP!');
+    for (let k = 0; k < 10; k++) particles.push({ kind: 'confetti', color: pick(BALLOON_COLORS), x: p.x, y, vx: rand(-90, 90), vy: rand(-80, 20), life: 1.2, t: 0 });
+    if (kits.length) { const k = pick(kits); k.vy = 220; say(k.twin, pick(['Pop! Hehehe!', 'Again! Again!', 'Boom! 🎈', 'Daddy, it went POP!']), { force: true }); }
+  }
+  function drawFurnitureBack() {
+    if (furn.bed) blit(bedOff, bedG, (g) => drawBedBack(g), {}, dad.x - 29 * dad.dir, BED.w, BED.h, 0, -dad.dir);
+    if (furn.chair) blit(chairOff, chairG, (g) => drawChair(g), {}, dad.x - dad.dir * 4, CHAIR.w, CHAIR.h, 0, 1);
+    for (const p of props) if (p.type === 'toy') { shadow(p.x, TOY.w * 0.6, 0); blit(toyOff, toyG, (g, q) => drawToy(g, q.toy), p, p.x, TOY.w, TOY.h, 0, 1); }
+  }
+  function drawFurnitureFront() {
+    if (furn.bed) blit(bedOff, bedG, (g) => drawBedFront(g), {}, dad.x - 29 * dad.dir, BED.w, BED.h, 0, -dad.dir);
+    for (const p of props) {
+      if (p.type !== 'balloon') continue;
+      const bx = Math.round(p.x + Math.sin(p.ph * 1.3) * 4), top = GROUND - p.alt - BAL.h + Math.round(Math.sin(p.ph * 2) * 4);
+      if (p.tie) { // string down to the toy it's tied to
+        ctx.strokeStyle = 'rgba(255,255,255,0.75)'; ctx.lineWidth = 2; ctx.beginPath();
+        ctx.moveTo(bx, top + BAL.h); ctx.quadraticCurveTo(bx + Math.sin(p.ph) * 10, (top + BAL.h + GROUND - 30) / 2, p.tie.x, GROUND - 30); ctx.stroke();
+      }
+      blit(balOff, balG, (g, q) => drawBalloon(g, q.color), p, bx, BAL.w, BAL.h, GROUND - top - BAL.h, 1);
+    }
   }
 
   // ---------- morning coffee ☕ ----------
@@ -1127,21 +1210,21 @@
       drawStarburst(starG, 48, performance.now() / 900);
       const size = 48 * S * (0.6 + 0.4 * k);
       ctx.globalAlpha = Math.min(1, k);
-      ctx.drawImage(starOff, Math.round(dad.x - size / 2), Math.round(GROUND - DAD.h / 2 - dad.jump - size / 2), size, size);
+      ctx.drawImage(starOff, Math.round(dad.x - size / 2), Math.round(GROUND - DAD.h / 2 - dad.jump - dad.lift - size / 2), size, size);
       ctx.globalAlpha = 1;
     }
-    shadow(dad.x, DAD.w * 0.7, dad.jump);
+    if (dad.lift < 5) shadow(dad.x, DAD.w * 0.7, dad.jump);
     if (customImg) {
       const h = dad.kind === 'sleep' ? DAD.h * 0.8 : DAD.h;
       const w = h * customImg.width / customImg.height;
       const bob = dad.kind === 'walk' ? (dad.frame % 2) * 3 : dad.breath ? 2 : 0;
-      const x = dad.x - w / 2, y = GROUND - h - dad.jump - bob;
+      const x = dad.x - w / 2, y = GROUND - h - dad.jump - dad.lift - bob;
       ctx.save(); ctx.imageSmoothingEnabled = true;
       if (dad.dir < 0) { ctx.translate(x + w, y); ctx.scale(-1, 1); ctx.drawImage(customImg, 0, 0, w, h); } else ctx.drawImage(customImg, x, y, w, h);
       ctx.restore(); ctx.imageSmoothingEnabled = false;
       return;
     }
-    blit(dadOff, dadG, drawDad, dad, dad.x, DAD.w, DAD.h, dad.jump, dad.dir);
+    blit(dadOff, dadG, drawDad, dad, dad.x, DAD.w, DAD.h, dad.jump + dad.lift, dad.dir);
   }
   function render() {
     ctx.clearRect(0, 0, W, H);
@@ -1150,9 +1233,11 @@
       const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, 'rgba(255,120,160,0)'); g.addColorStop(1, `rgba(255,120,160,${a})`);
       ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
     }
+    drawFurnitureBack();
     kits.forEach((k) => { shadow(k.x, KIT.w * 0.6, k.jump); blit(kitOff, kitG, drawKit, k, k.x, KIT.w, KIT.h, k.jump, k.dir); });
     if (wife) { shadow(wife.x, BUN.w * 0.55, wife.jump); blit(bunOff, bunG, drawBunny, wife, wife.x, BUN.w, BUN.h, wife.jump, wife.dir); }
     drawDadEntity();
+    drawFurnitureFront();
     if (dad.hunger >= 70 && mode === 'awake' && dad.kind !== 'sleep') { // little "I'm hungry" carrot bobbing over his head
       const bob = Math.sin(performance.now() / 300) * 3;
       ctx.globalAlpha = 0.9;
@@ -1173,6 +1258,7 @@
       if (p.kind === 'heart') drawHeart(ctx, Math.round(p.x), Math.round(p.y), 2);
       else if (p.kind === 'z') { ctx.fillStyle = '#ffffff'; ctx.font = `bold ${12 + p.t * 6}px ui-monospace, Menlo, monospace`; ctx.strokeStyle = '#2b1b17'; ctx.lineWidth = 3; ctx.strokeText('Z', p.x, p.y); ctx.fillText('Z', p.x, p.y); }
       else if (p.kind === 'lips') { ctx.globalAlpha = Math.min(1, 2.2 * (1 - p.t / p.life)); const sc = 3 + Math.floor(p.t * 3); drawLips(ctx, Math.round(p.x - 5 * sc), Math.round(p.y - 3 * sc), Math.round(sc)); }
+      else if (p.kind === 'confetti') { ctx.fillStyle = p.color; ctx.fillRect(Math.round(p.x), Math.round(p.y), 5, 5); }
       else if (p.kind === 'cloud') { ctx.fillStyle = 'rgba(255,255,255,0.85)'; const x = Math.round(p.x), y = Math.round(p.y); ctx.fillRect(x, y, 12, 6); ctx.fillRect(x + 3, y - 3, 7, 3); ctx.fillRect(x - 3, y + 2, 4, 3); }
       else if (p.kind === 'steam') { ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.fillRect(Math.round(p.x + Math.sin(p.t * 6) * 3), Math.round(p.y), 4, 4); }
       else if (p.kind === 'crumb') { ctx.fillStyle = Math.random() < 0.5 ? '#ff6a2a' : '#c43d0c'; ctx.fillRect(Math.round(p.x), Math.round(p.y), 5, 5); }
@@ -1192,8 +1278,9 @@
     if (wife) { const keep = wife.kind; move(wife, dt); if (keep === 'kiss' || keep === 'hug') wife.kind = keep; }
     updateWife(dt);
     updateFlight(dt);
+    updateFurniture(dt);
     if (dad.kind === 'sleep') { zT -= dt; if (zT <= 0) { zT = 1.6; burst('z', dad.x + 30, GROUND - 55, 1); } }
-    for (const p of particles) { p.t += dt; p.x += p.vx * dt * (p.kind === 'z' ? 0.5 : 1); p.y += p.vy * dt; if (p.kind === 'z') p.x += Math.sin(p.t * 3) * 0.4; }
+    for (const p of particles) { p.t += dt; p.x += p.vx * dt * (p.kind === 'z' ? 0.5 : 1); p.y += p.vy * dt; if (p.kind === 'z') p.x += Math.sin(p.t * 3) * 0.4; if (p.kind === 'confetti') p.vy += 260 * dt; }
     for (let i = particles.length - 1; i >= 0; i--) if (particles[i].t > particles[i].life) particles.splice(i, 1);
     updateBubbles(dt);
     fitWindow(dt);
@@ -1211,5 +1298,5 @@
   // preview hook (used only for screenshots in a browser)
   window.__foxBall = () => fetchBall; // for automated tests
   window.__foxFlight = () => flight;
-  window.__fox = { startFlying, dad, kits, startWifeVisit, get wife() { return wife; }, startVisit, endVisit, say, openMainMenu, doTrick, eatCarrot, askForCarrot, drinkCoffee, openAskMenu, openPlayMenu, askFor, startGame, goToSleep, wakeUp, get mode() { return mode; }, get game() { return game; } };
+  window.__fox = { props, furn, startFlying, dad, kits, startWifeVisit, get wife() { return wife; }, startVisit, endVisit, say, openMainMenu, doTrick, eatCarrot, askForCarrot, drinkCoffee, openAskMenu, openPlayMenu, askFor, startGame, goToSleep, wakeUp, get mode() { return mode; }, get game() { return game; } };
 })();

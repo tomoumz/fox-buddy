@@ -272,6 +272,67 @@ function drawLips(g, x, y, s, color = '#e0254a') {
   rr(0, 3, 10, 1, '#9e1030'); rr(1, 4, 8, 2, color); rr(3, 6, 4, 1, color); rr(2, 4, 2, 1, '#ff7a90');
 }
 
+// ---------------- FURNITURE & TOYS ----------------
+const PROPPAL = {
+  ch: '#3f6fb5', ch2: '#2d528a', ch3: '#5a8be0', wd: '#8a5a2b', wd2: '#6b4220',
+  mat: '#f4f1ea', q: '#d9364f', q2: '#ff8fa3', pil: '#fff6e0',
+  bk1: '#ffd23f', bk2: '#2ec4b6', bk3: '#9b5de5', bear: '#a8703c', bear2: '#7a4f25', duck: '#ffd23f', beak: '#ff8c1a'
+};
+function propPx(g) { const r0 = px(g); return (x, y, w, h, c) => r0(x, y, w, h, PROPPAL[c] || c); }
+
+// cozy armchair (grid 34 x 26)
+function drawChair(g) {
+  const r = propPx(g);
+  r(5, 0, 24, 16, 'ch'); r(6, 1, 22, 2, 'ch3'); r(9, 4, 1, 9, 'ch2'); r(16, 4, 1, 9, 'ch2'); r(23, 4, 1, 9, 'ch2'); // back with buttons
+  r(0, 9, 7, 12, 'ch'); r(27, 9, 7, 12, 'ch'); r(0, 9, 7, 2, 'ch3'); r(27, 9, 7, 2, 'ch3');                     // arms
+  r(6, 15, 22, 6, 'ch3'); r(6, 20, 22, 1, 'ch2');                                                                  // seat cushion
+  r(1, 21, 32, 3, 'ch2');                                                                                          // base
+  r(3, 24, 3, 2, 'wd'); r(28, 24, 3, 2, 'wd');                                                                     // little wooden feet
+}
+// bed (grid 60 x 24), drawn in two layers so the quilt can tuck him in.
+// Headboard on the left; flipped when needed so it's always at his head.
+function drawBedBack(g) {
+  const r = propPx(g);
+  r(0, 0, 5, 22, 'wd'); r(1, 1, 3, 2, 'wd2'); r(1, 5, 3, 1, 'wd2');           // headboard
+  r(4, 10, 52, 6, 'mat');                                                     // mattress
+  r(6, 6, 13, 5, 'pil'); r(7, 7, 11, 1, '#ffffff');                           // pillow
+  r(4, 16, 52, 4, 'wd'); r(4, 16, 52, 1, 'wd2');                              // frame
+  r(5, 20, 3, 4, 'wd2'); r(52, 20, 3, 4, 'wd2');                              // legs
+  r(55, 8, 5, 14, 'wd'); r(56, 9, 3, 2, 'wd2');                               // footboard
+}
+function drawBedFront(g) {
+  const r = propPx(g);
+  r(17, 10, 38, 7, 'q'); r(17, 10, 38, 1, 'q2');                              // red quilt over him
+  for (let x = 20; x < 55; x += 6) r(x, 12, 3, 3, 'q2');                      // little hearts-ish pattern
+  r(55, 8, 5, 14, 'wd'); r(56, 9, 3, 2, 'wd2');                               // footboard stays in front
+}
+// balloon (grid 9 x 12)
+function drawBalloon(g, color) {
+  const r = px(g);
+  r(2, 0, 5, 1, color); r(1, 1, 7, 1, color); r(0, 2, 9, 5, color); r(1, 7, 7, 1, color); r(2, 8, 5, 1, color); r(3, 9, 3, 1, color);
+  r(4, 10, 1, 1, color); r(3, 11, 3, 1, color);                               // knot
+  r(2, 2, 2, 2, '#ffffff'); r(2, 4, 1, 1, '#ffffff');                         // shine
+}
+// toys (grid 16 x 14), kind: 'blocks' | 'bear' | 'beachball' | 'duck'
+function drawToy(g, kind) {
+  const r = propPx(g);
+  if (kind === 'blocks') {
+    r(0, 7, 7, 7, 'bk1'); r(8, 7, 7, 7, 'bk2'); r(4, 0, 7, 7, 'bk3');
+    r(2, 9, 3, 3, '#ffffff'); r(10, 9, 3, 3, '#ffffff'); r(6, 2, 3, 3, '#ffffff'); // letter tiles
+  } else if (kind === 'bear') {
+    r(3, 0, 3, 3, 'bear'); r(10, 0, 3, 3, 'bear'); r(4, 1, 8, 6, 'bear'); r(6, 4, 4, 2, '#e8c49a');
+    r(6, 3, 1, 1, 'K'); r(9, 3, 1, 1, 'K'); r(7, 4, 2, 1, 'K');               // face
+    r(3, 7, 10, 6, 'bear'); r(5, 8, 6, 4, '#e8c49a'); r(2, 12, 4, 2, 'bear2'); r(10, 12, 4, 2, 'bear2');
+    r(6, 6, 4, 1, '#d9364f');                                                 // red ribbon
+  } else if (kind === 'beachball') {
+    r(4, 3, 8, 1, '#ffffff'); r(3, 4, 10, 8, '#ffffff'); r(4, 12, 8, 1, '#ffffff');
+    r(3, 4, 3, 8, '#d9364f'); r(7, 4, 2, 8, '#2ec4b6'); r(10, 4, 3, 8, '#ffd23f');
+  } else if (kind === 'duck') {
+    r(8, 1, 5, 5, 'duck'); r(13, 3, 3, 2, 'beak'); r(10, 2, 1, 1, 'K');
+    r(1, 6, 12, 6, 'duck'); r(0, 5, 3, 3, 'duck'); r(4, 7, 5, 2, '#ffe680');
+  }
+}
+
 // ---------- yellow starburst (the logo's background) ----------
 function drawStarburst(g, size, spin) {
   const c = size / 2, pts = 9;
@@ -305,4 +366,4 @@ function drawBall(g, x, y, s) {
   r(1, 0, 3, 5, '#c6f432'); r(0, 1, 5, 3, '#c6f432'); r(1, 1, 1, 3, '#ffffff'); r(3, 1, 1, 3, '#ffffff');
 }
 
-window.Sprites = { drawBunny, drawLips, drawKit, drawCarrotIcon, drawDad, drawHeart, drawBerry, drawBall, drawStarburst, outline, PAL };
+window.Sprites = { drawChair, drawBedBack, drawBedFront, drawBalloon, drawToy, drawBunny, drawLips, drawKit, drawCarrotIcon, drawDad, drawHeart, drawBerry, drawBall, drawStarburst, outline, PAL };
