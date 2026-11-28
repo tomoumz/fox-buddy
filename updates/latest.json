@@ -1,6 +1,6 @@
 {
-  "version": "1.5.4",
-  "file": "fox-buddy-1.5.4.tar.gz",
-  "sha256": "2949b5f6fffb6628250a841ffc376502b95d306cd582b83a11c597be4ce2469e",
-  "notes": "Chili Pepper walks gracefully now, no more hopping 🐰💕"
+  "version": "1.5.5",
+  "file": "fox-buddy-1.5.5.tar.gz",
+  "sha256": "4edc489056285ef41801155f7b92e4d4bfcde0b5204748cd9ac248cd6d8acea0",
+  "notes": "I check your email much more gently now, so Mail won't freeze."
 }

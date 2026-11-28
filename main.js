@@ -379,28 +379,52 @@ async function chat(userText, context) {
 //           macOS doesn't let other apps read your chats, so Timmy only knows WHICH app.
 const CHAT_APPS = ['Messages', 'WhatsApp', 'Telegram', 'Slack', 'Signal', 'Discord', 'Microsoft Teams', 'Messenger', 'Microsoft Outlook', 'Spark', 'Mail'];
 const seenMail = new Set();
-let mailSeeded = false;
 const badgeCounts = {};
 let mailWorking = false;
 
 function osa(script) {
   return new Promise((resolve) => execFile('osascript', ['-e', script], { timeout: 20000 }, (err, out) => resolve(err ? null : String(out))));
 }
-const MAIL_SCRIPT = `
+// Mail is asked as little as possible, so it never freezes:
+// 1) every minute, just "how many unread?" (instant, even with huge inboxes);
+// 2) only when that number goes up, look at the 3 newest messages of each inbox.
+const MAIL_COUNT_SCRIPT = `
 if application "Mail" is running then
   tell application "Mail"
-    set out to ""
-    set msgs to (messages of inbox whose read status is false)
-    set n to count of msgs
-    if n > 25 then set n to 25
-    repeat with i from 1 to n
-      set m to item i of msgs
-      set out to out & (id of m as string) & tab & (sender of m) & tab & (subject of m) & linefeed
-    end repeat
-    return out
+    with timeout of 8 seconds
+      return (unread count of inbox) as string
+    end timeout
   end tell
 end if
 return "NOT_RUNNING"`;
+const MAIL_NEWEST_SCRIPT = `
+tell application "Mail"
+  with timeout of 10 seconds
+    set out to ""
+    repeat with a in accounts
+      try
+        set mb to missing value
+        try
+          set mb to mailbox "INBOX" of a
+        on error
+          set mb to mailbox "Inbox" of a
+        end try
+        set n to count of messages of mb
+        set idx to {1, 2, 3, n - 2, n - 1, n}
+        repeat with i in idx
+          set k to contents of i
+          if k ≥ 1 and k ≤ n then
+            set m to message k of mb
+            if read status of m is false then
+              set out to out & (message id of m) & tab & (sender of m) & tab & (subject of m) & tab & ((date received of m) as «class isot» as string) & linefeed
+            end if
+          end if
+        end repeat
+      end try
+    end repeat
+    return out
+  end timeout
+end tell`;
 const DOCK_SCRIPT = `
 tell application "System Events"
   set out to ""
@@ -417,21 +441,34 @@ end tell`;
 
 const cleanSender = (s) => { const m = String(s).match(/^\s*"?([^"<]+?)"?\s*<.+>\s*$/); return (m ? m[1] : s).trim(); };
 
+let lastUnread = null;
 async function checkMail() {
   if (!config.notifyEmail) return;
-  const out = await osa(MAIL_SCRIPT);
-  if (out === null || out.trim() === 'NOT_RUNNING') { mailWorking = false; return; }
+  const out = await osa(MAIL_COUNT_SCRIPT);
+  if (out === null || out.trim() === 'NOT_RUNNING') { mailWorking = false; lastUnread = null; return; }
   mailWorking = true;
+  const unread = parseInt(out, 10);
+  if (Number.isNaN(unread)) return;
+  const wentUp = lastUnread !== null && unread > lastUnread;
+  lastUnread = unread;
+  if (!wentUp) return; // nothing new: don't bother Mail any further
+  const details = await osa(MAIL_NEWEST_SCRIPT);
+  const recent = Date.now() - 15 * 60 * 1000;
   const fresh = [];
-  for (const line of out.split('\n')) {
-    const [id, from, subject] = line.split('\t');
+  let readAny = false;
+  for (const line of String(details || '').split('\n')) {
+    const [id, from, subject, when] = line.split('\t');
+    if (id) readAny = true;
     if (!id || seenMail.has(id)) continue;
     seenMail.add(id);
-    if (mailSeeded) fresh.push({ from: cleanSender(from || 'someone'), subject: (subject || '').trim() });
+    const t = Date.parse(when);
+    if (!Number.isNaN(t) && t < recent) continue; // an old unread email, not a new one
+    fresh.push({ from: cleanSender(from || 'someone'), subject: (subject || '').trim(), t: Number.isNaN(t) ? 0 : t });
   }
-  mailSeeded = true;
+  fresh.sort((a, b) => b.t - a.t);
   if (fresh.length === 1) send('notify', { kind: 'email', app: 'Mail', from: fresh[0].from, subject: fresh[0].subject });
   else if (fresh.length > 1) send('notify', { kind: 'email', app: 'Mail', count: fresh.length, from: fresh[0].from, subject: fresh[0].subject });
+  else if (!readAny) send('notify', { kind: 'email', app: 'Mail' }); // count went up but Mail didn't tell us who
 }
 
 async function checkBadges() {
@@ -466,9 +503,15 @@ function askAccessibility() {
 function startWatchers() {
   if (!IS_MAC) return;
   if (config.notifyMessages) askAccessibility();
-  const tick = async () => { try { await checkMail(); await checkBadges(); } catch (e) { console.error(e); } };
-  setTimeout(tick, 8000);
-  setInterval(tick, 30000);
+  let busy = false; // never start a check while the previous one is still running
+  const tick = async () => {
+    if (busy) return;
+    busy = true;
+    try { await checkMail(); await checkBadges(); } catch (e) { console.error(e); }
+    busy = false;
+  };
+  setTimeout(tick, 60000);    // wait a minute after opening, so Mail can start up in peace
+  setInterval(tick, 60000);
 }
 
 // ---------- self-updates ----------
