@@ -1,6 +1,6 @@
 {
-  "version": "1.6.0",
-  "file": "fox-buddy-1.6.0.tar.gz",
-  "sha256": "61da9e962cdefa2280616fa995371e322b2f7236600a80b3f0084337da922894",
-  "notes": "I got WINGS! 🪽 Ask me to fly around your screen, I'll even hop over your desktop icons!"
+  "version": "1.6.1",
+  "file": "fox-buddy-1.6.1.tar.gz",
+  "sha256": "7ee0858fc9b6379e9ee4cb3731d4f8413b16826a5f7da77b5bb4b4a830dc86b3",
+  "notes": "Fixed: buttons and tabs in my bubbles now work on the first click."
 }

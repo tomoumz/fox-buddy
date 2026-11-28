@@ -73,6 +73,7 @@ function createWindow() {
     width: 800, height: STRIP_HEIGHT,
     transparent: true, frame: false, resizable: false, movable: false, hasShadow: false,
     skipTaskbar: true, alwaysOnTop: true, fullscreenable: false,
+    acceptFirstMouse: true, // macOS: the first click on Timmy's buttons counts, even when his window isn't active
     backgroundColor: '#00000000',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -699,6 +700,11 @@ app.whenReady().then(() => {
   createTray();
   startWatchers();
   startUpdateChecks();
+  if (!app.isPackaged && process.env.FOX_MENU_SELFTEST) { // developer test only
+    try { const m = buildMenu(); console.log('FOXMENU ok:', m.items.map((i) => i.label + (i.submenu ? ' [' + i.submenu.items.map((x) => x.label).join(', ') + ']' : '')).filter(Boolean).join(' | ')); }
+    catch (e) { console.log('FOXMENU FAILED:', e && e.stack); }
+    setTimeout(() => app.exit(0), 500);
+  }
   if (!app.isPackaged && process.env.FOX_CHAT_SELFTEST) { // developer test only
     setTimeout(async () => {
       for (const t of process.env.FOX_CHAT_SELFTEST.split('|')) console.log('FOXCHAT', JSON.stringify(t), '->', JSON.stringify(await chat(t, { mode: 'awake' })), '| name:', config.yourName);
