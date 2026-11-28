@@ -1,6 +1,6 @@
 {
-  "version": "1.6.1",
-  "file": "fox-buddy-1.6.1.tar.gz",
-  "sha256": "7ee0858fc9b6379e9ee4cb3731d4f8413b16826a5f7da77b5bb4b4a830dc86b3",
-  "notes": "Fixed: buttons and tabs in my bubbles now work on the first click."
+  "version": "1.6.2",
+  "file": "fox-buddy-1.6.2.tar.gz",
+  "sha256": "628fcf11ebe89f2aae54633c2d2131d22a9f2e13246ab165cd2c12d599e7923d",
+  "notes": "Fixed: my menu tabs (Timmy, Settings…) were hiding below the screen. Sorry!"
 }

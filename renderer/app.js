@@ -2,7 +2,7 @@
 (async () => {
   // When opened in a plain browser (for previews) there is no Electron bridge.
   const api = window.fox || {
-    setIgnoreMouse() {}, focus() {}, blur() {}, contextMenu() {}, setState() {}, openApp() {}, openPrivacy() {}, openKeyPage() {}, installUpdate: async () => ({ ok: false }), desktopIcons: async () => (window.__fakeIcons || []), setHeight() {}, getPrefs: async () => ({ sound: false, notifyEmail: true, notifyMessages: true, followPointer: true, twinsVisit: true, openAtLogin: true, hasKey: false, version: '1.3.0', update: null }), prefAction: async () => true, setApiKey: async () => ({ ok: false, error: 'preview' }), hasApiKey: async () => false,
+    setIgnoreMouse() {}, focus() {}, blur() {}, contextMenu() {}, setState() {}, openApp() {}, openPrivacy() {}, openKeyPage() {}, installUpdate: async () => ({ ok: false }), desktopIcons: async () => (window.__fakeIcons || []), setHeight(h) { if (window.__setH) window.__setH(h); }, getPrefs: async () => ({ sound: false, notifyEmail: true, notifyMessages: true, followPointer: true, twinsVisit: true, openAtLogin: true, hasKey: false, version: '1.3.0', update: null }), prefAction: async () => true, setApiKey: async () => ({ ok: false, error: 'preview' }), hasApiKey: async () => false,
     on(ch, fn) { (window.__foxHandlers = window.__foxHandlers || {})[ch] = fn; },
     getConfig: async () => ({ foxName: 'Timmy', yourName: '', wakeTime: '07:00', sleepTime: '22:30', breakReminderMinutes: 50, chattiness: 'normal', sound: false }),
     getState: async () => ({ hiScore: 0, lastMorning: '' }),
@@ -157,7 +157,11 @@
     heightT -= dt;
     let need = 300;
     if (flight) need = 10000; // the whole screen is his sky
-    for (const [, b] of bubbles) need = Math.max(need, H - b.el.getBoundingClientRect().top + 16);
+    for (const [, b] of bubbles) {
+      if (b.speaker.flying) continue;
+      const base = Math.round(H - speakerTop(b.speaker, true) + 14);
+      need = Math.max(need, base + (b.el.offsetHeight || 0) + 16);
+    }
     if (chatOpen || keyOpen) need = Math.max(need, 340);
     need = Math.ceil(need / 20) * 20;
     if (need > H + 2 || (need < H - 2 && heightT <= 0)) {
@@ -185,7 +189,8 @@
       const left = Math.round(clamp(b.speaker.x, half, W - half));
       let bottom = Math.round(H - speakerTop(b.speaker, !b.speaker.flying) + 14);
       const hgt = b.el.offsetHeight || 60;
-      if (H - bottom - hgt < 4) bottom = Math.round(H - (GROUND - b.speaker.jump) - hgt - 12); // no room above (high up): show it under his feet
+      // only while flying high up: no room above, so show it under his feet (on the ground the strip grows instead)
+      if (b.speaker.flying && H - bottom - hgt < 4) bottom = Math.round(H - (GROUND - b.speaker.jump) - hgt - 12);
       if (left !== b.left) { b.left = left; b.el.style.left = left + 'px'; }
       if (bottom !== b.bottom) { b.bottom = bottom; b.el.style.bottom = bottom + 'px'; }
       if (b.t > b.life && !(b.chat && chatOpen)) { b.speaker.mouth = false; shut(who); }
